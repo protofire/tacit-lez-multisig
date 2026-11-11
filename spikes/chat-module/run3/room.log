@@ -1,0 +1,32 @@
+[19:59:16] run3 commit 4f1ff99; logosctl logosctl version 0.3.2; RISC0_DEV_MODE=1; sequencer :3085
+[19:59:18] sequencer pid 27508 on :3085
+[20:04:25] vault funded 1000; recipient GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg; rpc balance before: {"jsonrpc":"2.0","id":1,"result":1}
+[20:05:20] TIMING A online after 2.2s
+[20:05:24] TIMING B online after 2.1s
+[20:05:28] TIMING C online after 2.2s
+[20:05:28] chat addresses A=ea1caf0f48fbac310d75a7679cc28c768478956f883a3e51130de8f4475c1211 B=c59fdfdb0a79d6c0d6204b374e210317d879b731ccbc49285bde68119984c810 C=e5436f161570c6cac68f52eef91ccfceefb7e887a08fef730444ba22777dd6d8
+[20:05:28] room 3d45bf537e
+[20:06:31] TIMING join after add: B 62.5s, C 62.6s
+[20:06:32] A posted proposal (     728 B envelope)
+[20:06:34] TIMING B got 1 x 'msig1:prop:' after 2.1s of polling
+[20:06:34] B posted approval
+[20:06:34] TIMING C got 1 x 'msig1:prop:' after 0s of polling
+[20:06:35] C posted approval
+[20:06:35] B posted FORGED approval
+[20:06:38] TIMING A got 3 x 'msig1:approve:' after 2.2s of polling
+[20:06:38] TIMING proposal post -> 3 approvals at A: 5.5s
+[20:06:38] A: approval 0.txt valid: merged
+[20:06:38] A: approval 1.txt valid: merged
+[20:06:38] A: approval 2.txt INVALID by msig show: dropped
+[20:06:38] A: execute(proposal + forged B + valid C) refused: BELOW THRESHOLD, 1 valid approval
+[20:07:11] EXECUTED: vault 1000 -> 700 (nonce 1); recipient rpc balance after: {"jsonrpc":"2.0","id":1,"result":301}
+[20:07:12] C daemon stopped
+[20:07:12] A posted proposal 2 (C offline)
+[20:07:14] TIMING B got 1 x 'msig1:prop2:' after 2.1s of polling
+[20:07:14] B approved proposal 2
+[20:07:16] TIMING C online after .1s
+[20:10:23] ASYNC: C did NOT receive proposal 2 within 180 s after restart
+[20:10:23] TIMING A got 1 x 'msig1:approve2:' after .1s of polling
+[20:10:56] EXECUTED round 2 without C: vault 700 -> 650; recipient rpc balance: {"jsonrpc":"2.0","id":1,"result":351}
+[20:10:56] PASS
+[20:10:59] cleanup: daemons stopped, sequencer 27508 killed

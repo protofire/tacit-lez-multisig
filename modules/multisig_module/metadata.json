@@ -1,0 +1,30 @@
+{
+  "name": "multisig_module",
+  "display_name": "Private Multisig Module (RFP-005 prototype)",
+  "version": "0.1.0",
+  "description": "RFP-005 prototype core module: create a private M-of-N multisig on a LEZ v0.4 sequencer and execute a quorum-approved native transfer. Dev keys only; other operations are not exposed yet.",
+  "author": "Protofire",
+  "type": "core",
+  "interface": "cdylib",
+  "category": "wallet",
+  "main": "multisig_module_plugin",
+  "dependencies": [],
+  "include": [],
+  "capabilities": [],
+  "codegen": {
+    "rust": {
+      "crate": "rust-lib",
+      "trait": "MultisigModule",
+      "source": "src/glue.rs"
+    }
+  },
+  "nix": {
+    "external_libraries": [],
+    "packages": { "build": ["pkg-config"], "runtime": ["pcsclite"] },
+    "cmake": { "find_packages": [], "extra_include_dirs": [] },
+    "rust": {
+      "toolchain": "1.98.1",
+      "packages": { "build": ["rustPlatform.bindgenHook", "cmake", "pkg-config"], "runtime": ["pcsclite"] }
+    }
+  }
+}

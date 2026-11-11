@@ -1,0 +1,37 @@
+name: setup
+description: Rust 1.98.1 (rust-toolchain.toml) + risc0 toolchain 3.0.5 + cache
+runs:
+  using: composite
+  steps:
+    - name: System packages
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libssl-dev libpcsclite-dev lsof clang cmake
+
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: "1.98.1"
+
+    # Guest build (risc0-build 3.0.5): risc0 rust 1.97.0 + cpp toolchain, cargo-risczero/r0vm 3.0.5.
+    - name: Install risc0 toolchain (rzup)
+      shell: bash
+      run: |
+        curl -L https://risczero.com/install | bash
+        echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+        export PATH="$HOME/.risc0/bin:$PATH"
+        rzup install rust 1.97.0
+        rzup install cpp 2024.1.5
+        rzup install cargo-risczero 3.0.5
+        rzup install r0vm 3.0.5
+        rzup show
+
+    # cc cannot always find an `ar` for riscv32im; point it at the risc0 cpp one when present.
+    - name: Point cc at the risc0 cpp ar (if present)
+      shell: bash
+      run: |
+        ar_bin=$(find "$HOME/.risc0/toolchains" -name 'riscv32-unknown-elf-ar' -type f | head -n1 || true)
+        if [ -n "$ar_bin" ]; then echo "AR_riscv32im_risc0_zkvm_elf=$ar_bin" >> "$GITHUB_ENV"; fi
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ci-1.98.1
+        cache-on-failure: true

@@ -1,0 +1,39 @@
+[package]
+name = "cycle_bench"
+version = "0.1.0"
+edition = "2024"
+license = { workspace = true }
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+prove = ["lee/prove", "risc0-zkvm/prove"]
+ppe = ["prove"]
+
+[dependencies]
+lee = { workspace = true }
+lee_core = { workspace = true, features = ["host"] }
+clock_core.workspace = true
+fee_core.workspace = true
+rand.workspace = true
+test_guest_core.workspace = true
+test_programs.workspace = true
+programs.workspace = true
+
+risc0-zkvm.workspace = true
+borsh.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+clap = { workspace = true }
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "verify"
+harness = false
+required-features = ["ppe"]

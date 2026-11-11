@@ -1,0 +1,19 @@
+[package]
+name = "keycard_wallet"
+version = "0.1.0"
+edition = "2024"
+license = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+lee.workspace = true
+keycard-rs.workspace = true
+bip39.workspace = true
+hex.workspace = true
+log.workspace = true
+pcsc.workspace = true
+rand.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true

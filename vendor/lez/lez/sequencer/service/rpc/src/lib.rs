@@ -1,0 +1,169 @@
+use std::collections::BTreeMap;
+
+use jsonrpsee::proc_macros::rpc;
+pub use jsonrpsee::types::ErrorObjectOwned;
+#[cfg(feature = "client")]
+pub use jsonrpsee::{core::ClientError, http_client::HttpClientBuilder as SequencerClientBuilder};
+pub use sequencer_service_protocol::FeeStateQuote;
+use sequencer_service_protocol::{
+    Account, AccountId, Actor, Block, BlockId, ChannelId, Commitment, CommitmentPosition,
+    CommitmentSetDigest, CrossZoneDeadLetterReport, CrossZoneDeadLetterRequeue, EncryptedNote,
+    HashType, LeeTransaction, MembershipProof, Nonce, PageLimit, ProgramId, Publication,
+};
+
+#[cfg(all(not(feature = "server"), not(feature = "client")))]
+compile_error!("At least one of `server` or `client` features must be enabled.");
+
+/// Error code of a transaction turned away because the mempool is full.
+pub const MEMPOOL_IS_FULL_ERROR_CODE: i32 = -31900;
+
+/// Error code of a privacy-preserving transaction turned away because its fee reserve is below
+/// the fee at the head: priced again off a fresh quote, it may pass.
+pub const PRIVATE_FEE_BELOW_HEAD_ERROR_CODE: i32 = -31901;
+
+/// Type alias for RPC client. Only available when `client` feature is enabled.
+///
+/// It's cheap to clone this client, so it can be cloned and shared across the application.
+///
+/// # Example
+///
+/// ```no_run
+/// use common::transaction::LeeTransaction;
+/// use sequencer_service_rpc::{RpcClient as _, SequencerClientBuilder};
+///
+/// let url = "http://localhost:3040".parse()?;
+/// let client = SequencerClientBuilder::default().build(url)?;
+///
+/// let tx: LeeTransaction = unimplemented!("Construct your transaction here");
+/// let tx_hash = client.send_transaction(tx).await?;
+/// ```
+#[cfg(feature = "client")]
+pub type SequencerClient = jsonrpsee::http_client::HttpClient;
+
+#[cfg_attr(all(feature = "server", not(feature = "client")), rpc(server))]
+#[cfg_attr(all(feature = "client", not(feature = "server")), rpc(client))]
+#[cfg_attr(all(feature = "server", feature = "client"), rpc(server, client))]
+pub trait Rpc {
+    #[method(name = "sendTransaction")]
+    async fn send_transaction(&self, tx: LeeTransaction) -> Result<HashType, ErrorObjectOwned>;
+
+    /// The head fee market: current base fees and the band the next block's
+    /// can move within, for sizing `max_fee` at submission time.
+    #[method(name = "getFeeState")]
+    async fn get_fee_state(&self) -> Result<FeeStateQuote, ErrorObjectOwned>;
+
+    // TODO: expand healthcheck response into some kind of report
+    #[method(name = "checkHealth")]
+    async fn check_health(&self) -> Result<(), ErrorObjectOwned>;
+
+    // TODO: These functions should be removed after wallet starts using indexer
+    // for this type of queries.
+    //
+    // =============================================================================================
+
+    #[method(name = "getBlock")]
+    async fn get_block(&self, block_id: BlockId) -> Result<Option<Block>, ErrorObjectOwned>;
+
+    #[method(name = "getBlockRange")]
+    async fn get_block_range(
+        &self,
+        start_block_id: BlockId,
+        end_block_id: BlockId,
+    ) -> Result<Vec<Block>, ErrorObjectOwned>;
+
+    #[method(name = "getLastBlockId")]
+    async fn get_last_block_id(&self) -> Result<BlockId, ErrorObjectOwned>;
+
+    #[method(name = "getAccountBalance")]
+    async fn get_account_balance(&self, account_id: AccountId) -> Result<u128, ErrorObjectOwned>;
+
+    #[method(name = "getTransaction")]
+    async fn get_transaction(
+        &self,
+        tx_hash: HashType,
+    ) -> Result<Option<(LeeTransaction, BlockId)>, ErrorObjectOwned>;
+
+    #[method(name = "getAccountsNonces")]
+    async fn get_accounts_nonces(
+        &self,
+        account_ids: Vec<AccountId>,
+    ) -> Result<Vec<Nonce>, ErrorObjectOwned>;
+
+    /// Returns the account's nonce and the selected actor state; its balance is the actor state at
+    /// the native token program.
+    #[method(name = "getAccountView")]
+    async fn get_account_view(
+        &self,
+        actor_state_selector: Actor,
+    ) -> Result<Option<Account>, ErrorObjectOwned>;
+
+    #[method(name = "getPublications")]
+    async fn get_publications(
+        &self,
+        from_position: CommitmentPosition,
+        limit: PageLimit,
+    ) -> Result<Vec<(CommitmentPosition, Publication)>, ErrorObjectOwned>;
+
+    #[method(name = "getMessagePath")]
+    async fn get_message_path(
+        &self,
+        position: CommitmentPosition,
+    ) -> Result<Option<MembershipProof>, ErrorObjectOwned>;
+
+    #[method(name = "getRecoveryBinding")]
+    async fn get_recovery_binding(
+        &self,
+        address: AccountId,
+    ) -> Result<Option<EncryptedNote>, ErrorObjectOwned>;
+
+    /// The membership paths of `commitments` and of the message leaves at `message_positions`,
+    /// all under the root returned with them.
+    #[method(name = "getProofsAndRoot")]
+    async fn get_proofs_and_root(
+        &self,
+        commitments: Vec<Commitment>,
+        message_positions: Vec<CommitmentPosition>,
+    ) -> Result<
+        (
+            Vec<Option<MembershipProof>>,
+            Vec<Option<MembershipProof>>,
+            CommitmentSetDigest,
+        ),
+        ErrorObjectOwned,
+    >;
+
+    #[method(name = "getAccount")]
+    async fn get_account(&self, account_id: AccountId)
+    -> Result<Option<Account>, ErrorObjectOwned>;
+
+    #[method(name = "getProgramIds")]
+    async fn get_program_ids(&self) -> Result<BTreeMap<String, ProgramId>, ErrorObjectOwned>;
+
+    #[method(name = "getChannelId")]
+    async fn get_channel_id(&self) -> Result<ChannelId, ErrorObjectOwned>;
+
+    /// The cross-zone deliveries this sequencer has given up on.
+    ///
+    /// Its own method rather than folded into `checkHealth`: one undeliverable
+    /// peer message must not read as an unhealthy node.
+    #[method(name = "getCrossZoneDeadLetters")]
+    async fn get_cross_zone_dead_letters(
+        &self,
+    ) -> Result<CrossZoneDeadLetterReport, ErrorObjectOwned>;
+
+    /// Restores a dead-lettered cross-zone delivery to the pending list, with a
+    /// clean attempt count.
+    ///
+    /// The operator move once the cause of the failures has cleared: a raised
+    /// mint cap, a fixed target program. A delivery that fails again is
+    /// dead-lettered again.
+    ///
+    /// Like the rest of this surface it carries no authentication, so anyone
+    /// who can reach the RPC can requeue; the blast radius is bounded to
+    /// re-attempting deliveries this node already accepted from a peer.
+    #[method(name = "requeueCrossZoneDeadLetter")]
+    async fn requeue_cross_zone_dead_letter(
+        &self,
+        message_key: HashType,
+    ) -> Result<CrossZoneDeadLetterRequeue, ErrorObjectOwned>;
+}

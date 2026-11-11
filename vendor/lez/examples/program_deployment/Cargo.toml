@@ -1,0 +1,20 @@
+[package]
+name = "program_deployment"
+version = "0.1.0"
+edition = "2024"
+license = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+common.workspace = true
+lee.workspace = true
+lee_core.workspace = true
+program_loader_core.workspace = true
+sequencer_service_rpc = { workspace = true, features = ["client"] }
+wallet.workspace = true
+
+tokio = { workspace = true, features = ["macros"] }
+clap.workspace = true

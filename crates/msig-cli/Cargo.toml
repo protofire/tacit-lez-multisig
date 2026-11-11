@@ -1,0 +1,32 @@
+[package]
+name = "msig-cli"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "RFP-005 multisig operator CLI: propose / show / approve / execute over file envelopes"
+
+[[bin]]
+name = "msig"
+path = "src/main.rs"
+
+[dependencies]
+msig-core = { path = "../msig-core" }
+msig-host = { path = "../msig-host" }
+lee.workspace = true
+lee_core = { workspace = true, features = ["host"] }
+key_protocol.workspace = true
+wallet.workspace = true
+common.workspace = true
+program_loader_core.workspace = true
+sequencer_service_rpc.workspace = true
+risc0-binfmt = "3.0.2"
+risc0-zkvm = { version = "=3.0.5", default-features = false, features = ["std"] }
+borsh.workspace = true
+sha2.workspace = true
+k256.workspace = true
+hex = "0.4"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

@@ -1,0 +1,461 @@
+# scripts/cli-walkthrough.sh  2026-11-11T18:17:29Z  image msig e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557
+# LEZ v0.4.0-rc1 1806e87 sequencer on 127.0.0.1:3081, RISC0_DEV_MODE=1 (proofs are dev-mode receipts)
+# three operators = three wallet homes; envelopes move as files between them
+
+## 0. keys and per-operator setup (program deployed once, each operator gets a funded private fee account)
+operator 1 member key: 2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa
+operator 2 member key: e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10
+operator 3 member key: 96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285
+
+$ [operator 1] msig setup --payer-key <repo>/target/cli-walkthrough/payer.key
+[setup] deploying multisig image e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 at P = 2yigtJM3BuZ5TPsVKtB7DU1VewL7rn7R6Sz8DsrVBf7a
+Transaction hash is 918f55278ad9311ceb0f695b89738bb7f206267fb21cefead086e4de74b234a5
+Transaction is included in block 2
+Transaction hash is 4419eb6002a370fc9ab3f0dad2460b8f40ab281528c5c99515999f31a772fcf3
+Transaction is included in block 12
+Transaction hash is 668e21502105bc70e40277d4a605e0a889d0b2d54638169c4537ca4e13c5e35c
+Transaction is included in block 22
+Transaction hash is 3f8b2684158a93691e2f79a0981af1d55b51b8cccd0f090bf2499f37e93657a4
+Transaction is included in block 32
+Transaction hash is 90eb0d43a6a3b403cb3d7c119b180af02b8ac1b4344f132892657319cecf0c8d
+Transaction is included in block 42
+  shield fee funds: tx fb70e7701318c7a30a7ea02074028c78ab7486c8b97731e9e989e56f88630eee included in block 52
+[setup] private fee account 3P9q1uMcyvUSkbVhDH8mzvueEvwKVJAM5QMkb64muEfM
+
+$ [operator 2] msig setup --payer-key <repo>/target/cli-walkthrough/payer.key
+[setup] program already deployed at P = 2yigtJM3BuZ5TPsVKtB7DU1VewL7rn7R6Sz8DsrVBf7a
+  shield fee funds: tx 64b46f78db78501363ec2bfad62af6e5a46065689651c7c581df6ffdc73c2a84 included in block 63
+[setup] private fee account 5qAPjcFqSTzo9jxpZW7GkhP9fXTd7LfCkvEDpqFSQDDS
+
+$ [operator 3] msig setup --payer-key <repo>/target/cli-walkthrough/payer.key
+[setup] program already deployed at P = 2yigtJM3BuZ5TPsVKtB7DU1VewL7rn7R6Sz8DsrVBf7a
+  shield fee funds: tx 404463774864a34ad45fede3913e9dacd0b10ab189b2971c515088f6c1ea731f included in block 73
+[setup] private fee account B1V1yBb8aRAttdwt8cy4zjdEQa7kw7eHmcAvgmzBC4vP
+
+## 1. create the 2-of-3 private multisig (operator 1) and hand the vault file to 2 and 3
+
+$ [operator 1] msig create --members 2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa,e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10,96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285 --threshold 2 --perms 15
+[create] vault V = 36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg; vault file <repo>/target/cli-walkthrough/op1/msig-vault.json (secret: give it to members out of band)
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Create
+  [prove] done in 0.8 s
+  [wait] for inclusion
+  Create: tx 635e74a02c292cea6819eaeecd9ed78ef31e837305244675a666e498df2c4b18 included in block 84
+threshold 2 of 3  epoch 0  nonce 0  balance 0
+time lock 0 ms  limit none  spent 0 in period 0  spend nonce 0  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  member 2  96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285  perms 0b1111
+  ASSERT output contains: threshold 2 of 3
+
+$ [operator 2] msig join <repo>/target/cli-walkthrough/op1/msig-vault.json
+joined vault 36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+
+$ [operator 3] msig join <repo>/target/cli-walkthrough/op1/msig-vault.json
+joined vault 36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+
+## 2. fund the vault and open a public recipient
+
+$ [operator 1] msig fund 1000 --payer-key <repo>/target/cli-walkthrough/payer.key
+  fund vault: tx 04ae52cbf8968488755ea01c2c78d84c58a7ed75f51e81e34dace811522a2d9b included in block 94
+
+$ [operator 1] msig fund 1 --payer-key <repo>/target/cli-walkthrough/payer.key --to-key <repo>/target/cli-walkthrough/recipient.key
+public account 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+  fund public account: tx e2c75480ada3f87109b5db6c1c2e14af5580f2391afc0cf847ab87dcff09cfa6 included in block 104
+
+$ [operator 2] msig status
+vault 36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+threshold 2 of 3  epoch 0  nonce 0  balance 1000
+time lock 0 ms  limit none  spent 0 in period 0  spend nonce 0  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  member 2  96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285  perms 0b1111
+  ASSERT output contains: balance 1000
+
+## 3. propose a payout of 300 (operator 1), approve (2, 3): the file travels
+
+$ [operator 1] msig propose --to 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e --amount 300 --key <repo>/target/cli-walkthrough/op1/member.key --out <repo>/target/cli-walkthrough/prop.json
+wrote <repo>/target/cli-walkthrough/prop.json
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        0
+nonce        0
+expiry       1794424987049 (unix ms)
+action hash  64c5cb710d65dca40f4bc696cb3cac36c6cc4a8293a5f9a81243c6e5d99a0e6c
+approve digest d30d442eb902ffc79fd203f580e6f35994fdcc73dd29c3ba6e1b8678b606cd00
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+  authority  true
+  transfer   recipient 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+             amount    300
+signatures
+  propose  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+
+$ [operator 2] msig show <repo>/target/cli-walkthrough/op2/prop.json
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        0
+nonce        0
+expiry       1794424987049 (unix ms)
+action hash  64c5cb710d65dca40f4bc696cb3cac36c6cc4a8293a5f9a81243c6e5d99a0e6c
+approve digest d30d442eb902ffc79fd203f580e6f35994fdcc73dd29c3ba6e1b8678b606cd00
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+  authority  true
+  transfer   recipient 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+             amount    300
+signatures
+  propose  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+  ASSERT output contains: native-token
+  ASSERT output contains: recipient 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+  ASSERT output contains: amount    300
+  ASSERT output contains: nonce        0
+  ASSERT output contains: epoch        0
+  ASSERT output contains: approve digest
+
+$ [operator 2] msig approve <repo>/target/cli-walkthrough/op2/prop.json --key <repo>/target/cli-walkthrough/op2/member.key
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        0
+nonce        0
+expiry       1794424987049 (unix ms)
+action hash  64c5cb710d65dca40f4bc696cb3cac36c6cc4a8293a5f9a81243c6e5d99a0e6c
+approve digest d30d442eb902ffc79fd203f580e6f35994fdcc73dd29c3ba6e1b8678b606cd00
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+  authority  true
+  transfer   recipient 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+             amount    300
+signatures
+  propose  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+wrote <repo>/target/cli-walkthrough/op2/prop.json
+signed as approve by e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10
+
+$ [operator 3] msig approve <repo>/target/cli-walkthrough/op3/prop.json --key <repo>/target/cli-walkthrough/op3/member.key
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        0
+nonce        0
+expiry       1794424987049 (unix ms)
+action hash  64c5cb710d65dca40f4bc696cb3cac36c6cc4a8293a5f9a81243c6e5d99a0e6c
+approve digest d30d442eb902ffc79fd203f580e6f35994fdcc73dd29c3ba6e1b8678b606cd00
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+  authority  true
+  transfer   recipient 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+             amount    300
+signatures
+  propose  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+  approve  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  valid
+wrote <repo>/target/cli-walkthrough/op3/prop.json
+signed as approve by 96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285
+
+$ [operator 3] msig show <repo>/target/cli-walkthrough/op3/prop.json
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        0
+nonce        0
+expiry       1794424987049 (unix ms)
+action hash  64c5cb710d65dca40f4bc696cb3cac36c6cc4a8293a5f9a81243c6e5d99a0e6c
+approve digest d30d442eb902ffc79fd203f580e6f35994fdcc73dd29c3ba6e1b8678b606cd00
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+  authority  true
+  transfer   recipient 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+             amount    300
+signatures
+  propose  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+  approve  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  valid
+  approve  96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285  valid
+  ASSERT output contains: approve   *
+  ASSERT output contains: propose
+
+## 4. a tampered envelope is refused by show and by execute (amount 300 -> 700 in the signed bytes)
+
+$ [operator 3] msig show <repo>/target/cli-walkthrough/tampered.json
+Error: TAMPERED: the signed body commits to a different action than the one embedded
+  ASSERT output contains: TAMPERED
+
+$ [operator 3] msig execute <repo>/target/cli-walkthrough/tampered.json --key <repo>/target/cli-walkthrough/op3/member.key
+Error: TAMPERED: the signed body commits to a different action than the one embedded
+  ASSERT output contains: TAMPERED
+
+## 5. a second payout is proposed now (and approved) so it can go stale below
+
+## 6. execute the 300 payout (operator 3 proves and submits; progress and elapsed time are printed)
+
+$ [operator 3] msig execute <repo>/target/cli-walkthrough/op3/prop.json --key <repo>/target/cli-walkthrough/op3/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 0 nonce 0, balance 1000
+[3/4] 2 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+[4/4] proving and submitting Execute
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Execute
+  [prove] done in 0.9 s
+  [wait] for inclusion
+  Execute: tx 9a8ac02e99397274958ece7e3faf78e4d894ee2398287977210fcd9bdbd49ffc included in block 115
+executed. vault now:
+threshold 2 of 3  epoch 0  nonce 1  balance 700
+time lock 0 ms  limit none  spent 0 in period 0  spend nonce 0  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  member 2  96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285  perms 0b1111
+  ASSERT output contains: \[prove\] done in
+  ASSERT output contains: balance 700
+  ASSERT output contains: nonce 1
+
+$ [operator 2] msig status
+vault 36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+threshold 2 of 3  epoch 0  nonce 1  balance 700
+time lock 0 ms  limit none  spent 0 in period 0  spend nonce 0  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  member 2  96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285  perms 0b1111
+  ASSERT output contains: balance 700
+
+## 7. the older proposal (nonce 0) is stale now: refused before any proving, with a clear message
+
+$ [operator 2] msig execute <repo>/target/cli-walkthrough/old.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 0 nonce 1, balance 700
+Error: STALE: envelope was signed for epoch 0 nonce 0, the vault is now at epoch 0 nonce 1. Its approvals are dead: propose again.
+  ASSERT output contains: STALE
+
+## 8. config: remove member 3 (needs 2 approvals like any action); a payout proposed before it goes stale
+
+$ [operator 1] msig config remove-member 96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285 --key <repo>/target/cli-walkthrough/op1/member.key --out <repo>/target/cli-walkthrough/cfg.json
+wrote <repo>/target/cli-walkthrough/cfg.json
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        0
+nonce        1
+expiry       1794425019512 (unix ms)
+action hash  512164ab14d7ba7be0f0564b57b18519a9f6bde256707b8d1f39a3e68df775c0
+approve digest bc1c88d3a1d8c651af48627a0200c4863ac267542ba39af222132e3115fd2d9b
+action       CONFIG remove member 96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285
+signatures
+  propose  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+  ASSERT output contains: CONFIG remove member 96cb8b7bb1dc4ce8511c26e2db5c419d24690cab0919bd7232b25b9de0334285
+
+$ [operator 2] msig execute <repo>/target/cli-walkthrough/cfg.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 0 nonce 1, balance 700
+[3/4] 2 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+[4/4] proving and submitting Execute
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Execute
+  [prove] done in 1.0 s
+  [wait] for inclusion
+  Execute: tx f01027f0d0cea3cd2ec5280bc511878047b70da3bb07cb2dc123f86847c89de7 included in block 126
+executed. vault now:
+threshold 2 of 2  epoch 1  nonce 2  balance 700
+time lock 0 ms  limit none  spent 0 in period 0  spend nonce 0  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  ASSERT output contains: threshold 2 of 2
+  ASSERT output contains: epoch 1
+
+$ [operator 3] msig status
+vault 36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+threshold 2 of 2  epoch 1  nonce 2  balance 700
+time lock 0 ms  limit none  spent 0 in period 0  spend nonce 0  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  ASSERT output contains: threshold 2 of 2
+
+## 9. approvals signed before the epoch change are rejected; the removed member cannot act
+
+$ [operator 1] msig execute <repo>/target/cli-walkthrough/pre-config.json --key <repo>/target/cli-walkthrough/op1/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 1 nonce 2, balance 700
+Error: STALE: envelope was signed for epoch 0 nonce 1, the vault is now at epoch 1 nonce 2. Its approvals are dead: propose again.
+  ASSERT output contains: STALE
+
+$ [operator 1] msig propose --to 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e --amount 40 --key <repo>/target/cli-walkthrough/op3/member.key --out <repo>/target/cli-walkthrough/by-removed.json
+Error: this key is not a member with the initiate permission
+  ASSERT output contains: not a member
+
+## 10. image v2: spending limit 150 per day, 1 spend signature (a config change: same quorum)
+
+$ [operator 1] msig config set-limit 150 --period-ms 86400000 --threshold 1 --key <repo>/target/cli-walkthrough/op1/member.key --out <repo>/target/cli-walkthrough/limit.json
+wrote <repo>/target/cli-walkthrough/limit.json
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        1
+nonce        2
+expiry       1794425051200 (unix ms)
+action hash  f9aa500979520f690a015f6156edf09781d4571c540bfd5af52a1617cc6fb6c7
+approve digest 96c24889bf1adcfa87de4ff9fa1a802a2f616a656381b6d9e5648c3a21e6559c
+action       CONFIG set spending limit 150 per 86400000 ms, 1 spend signature(s)
+signatures
+  propose  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+  ASSERT output contains: CONFIG set spending limit 150 per 86400000 ms, 1 spend signature
+
+$ [operator 2] msig execute <repo>/target/cli-walkthrough/limit.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 1 nonce 2, balance 700
+[3/4] 2 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+[4/4] proving and submitting Execute
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Execute
+  [prove] done in 0.9 s
+  [wait] for inclusion
+  Execute: tx bda68f57cf2d8c5f5a8474c77fe5b1f08d13d7fbad4757b0cba560e265ccb764 included in block 136
+executed. vault now:
+threshold 2 of 2  epoch 2  nonce 3  balance 700
+time lock 0 ms  limit 150 per 86400000 ms (1 sig)  spent 0 in period 0  spend nonce 0  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  ASSERT output contains: limit 150 per 86400000 ms (1 sig)
+  ASSERT output contains: epoch 2  nonce 3
+
+## 11. Spend 100 under the limit: one spend signature, no proposal or approvals; a second 100 is over the limit
+
+$ [operator 1] msig spend --to 8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e --amount 100 --key <repo>/target/cli-walkthrough/op1/member.key --out <repo>/target/cli-walkthrough/spend.json
+wrote <repo>/target/cli-walkthrough/spend.json
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        2
+spend nonce  0
+action       SPEND under the spending limit (no proposal, no time lock)
+  recipient  8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+  amount     100
+  period     20768 (index; valid only inside that period)
+signatures
+  spend    2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+
+$ [operator 2] msig show <repo>/target/cli-walkthrough/op2/spend.json
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        2
+spend nonce  0
+action       SPEND under the spending limit (no proposal, no time lock)
+  recipient  8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+  amount     100
+  period     20768 (index; valid only inside that period)
+signatures
+  spend    2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+  ASSERT output contains: SPEND under the spending limit
+  ASSERT output contains: recipient  8o9pMRP8MiTPc6hF43ff6kL9Loa7b8PMc1WNBSESxC6e
+  ASSERT output contains: amount     100
+  ASSERT output contains: spend    *[0-9a-f]*  valid
+
+$ [operator 2] msig execute <repo>/target/cli-walkthrough/op2/spend.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 2 nonce 3, balance 700
+[3/4] 1 valid spend signature(s) from current spend members (limit threshold 1)
+[4/4] proving and submitting Spend
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Spend
+  [prove] done in 0.9 s
+  [wait] for inclusion
+  Spend: tx 6d2cd218e1434d80a7361d50be24e4d92da562dc0d4b2a9262f8d59eee401753 included in block 147
+executed. vault now:
+threshold 2 of 2  epoch 2  nonce 3  balance 600
+time lock 0 ms  limit 150 per 86400000 ms (1 sig)  spent 100 in period 20768  spend nonce 1  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  ASSERT output contains: balance 600
+  ASSERT output contains: spent 100 in period
+  ASSERT output contains: nonce 3
+  ASSERT output contains: spend nonce 1
+
+$ [operator 2] msig execute <repo>/target/cli-walkthrough/spend2.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 2 nonce 3, balance 600
+[3/4] 1 valid spend signature(s) from current spend members (limit threshold 1)
+[4/4] proving and submitting Spend
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Spend
+Error: the program rejected the Spend: Some(OverLimit) (guest exit code 20)
+  ASSERT output contains: OverLimit
+
+## 12. time lock 5 s (config); from now on actions go queue -> execute-queued
+
+$ [operator 1] msig config set-time-lock 5000 --key <repo>/target/cli-walkthrough/op1/member.key --out <repo>/target/cli-walkthrough/tl.json
+wrote <repo>/target/cli-walkthrough/tl.json
+vault        36HzJi1mYKZeonr9JpkMf2VbeLwtcwnQYNaJZsyWpKLg
+epoch        2
+nonce        3
+expiry       1794425114648 (unix ms)
+action hash  0b8436b1fbd1d2a944799302bb89fb8ba0f0cbe58521e67c71db4581e0ab48ae
+approve digest 6ad44411d37a63e23dfc3dca1f30b4b17070d05c621b6d607c27eff3061b3dd9
+action       CONFIG set time lock 5000 ms
+signatures
+  propose  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  valid
+  ASSERT output contains: CONFIG set time lock 5000 ms
+
+$ [operator 2] msig execute <repo>/target/cli-walkthrough/tl.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 2 nonce 3, balance 600
+[3/4] 2 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+[4/4] proving and submitting Execute
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Execute
+  [prove] done in 0.9 s
+  [wait] for inclusion
+  Execute: tx 421760fc42edf050c87871fe92059482d0385d2cf02dbe2e375646eaa19e063d included in block 157
+executed. vault now:
+threshold 2 of 2  epoch 3  nonce 4  balance 600
+time lock 5000 ms  limit 150 per 86400000 ms (1 sig)  spent 100 in period 20768  spend nonce 1  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  ASSERT output contains: time lock 5000 ms
+  ASSERT output contains: epoch 3  nonce 4
+
+## 13. payout 100 under the time lock: immediate execute refused, Queue, early execute refused, ExecuteQueued after eta
+
+$ [operator 2] msig execute <repo>/target/cli-walkthrough/q.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 3 nonce 4, balance 600
+[3/4] 2 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+[4/4] proving and submitting Execute
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Execute
+Error: the program rejected the Execute: Some(TimeLockMismatch) (guest exit code 15)
+  ASSERT output contains: TimeLockMismatch
+
+$ [operator 1] msig queue <repo>/target/cli-walkthrough/q.json --key <repo>/target/cli-walkthrough/op1/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 3 nonce 4, balance 600
+[3/4] 2 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+      queue at t = 1794421576812, eta = 1794421581812 (unix ms)
+[4/4] proving and submitting Queue
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Queue
+  [prove] done in 1.0 s
+  [wait] for inclusion
+  Queue: tx 9824a0475b5fe9e23b31f81a311507d96304d1ab1d1a428eb8e77598bb16b467 included in block 168
+queued. vault now:
+threshold 2 of 2  epoch 3  nonce 4  balance 600
+time lock 5000 ms  limit 150 per 86400000 ms (1 sig)  spent 100 in period 20768  spend nonce 1  queue eta 1794421581812
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  ASSERT output contains: queued. vault now
+  ASSERT output contains: queue eta
+  ASSERT output contains: balance 600
+
+$ [operator 2] msig execute-queued <repo>/target/cli-walkthrough/q.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 3 nonce 4, balance 600
+Error: TOO EARLY: eta 1794421581812 (unix ms), now 1794421578209; the time lock has not run out
+  ASSERT output contains: TOO EARLY
+
+(waiting 5 s for eta 1794421581812)
+
+$ [operator 2] msig execute-queued <repo>/target/cli-walkthrough/q.json --key <repo>/target/cli-walkthrough/op2/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 3 nonce 4, balance 600
+[3/4] queued action matches, eta 1794421581812 passed
+[4/4] proving and submitting ExecuteQueued
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting ExecuteQueued
+  [prove] done in 0.9 s
+  [wait] for inclusion
+  ExecuteQueued: tx 0133ca20b957048ac8ed73e2c3ad5d4b0abc72b47717bb436557ed5b67416c8a included in block 180
+executed. vault now:
+threshold 2 of 2  epoch 3  nonce 5  balance 500
+time lock 5000 ms  limit 150 per 86400000 ms (1 sig)  spent 100 in period 20768  spend nonce 1  queue empty
+  member 0  2364f8f664d7f2fa697c1e9f98b2ebed71e7d0d5c36ab06d7ba8b3615d3b9baa  perms 0b1111
+  member 1  e17acf5d71e9611ec395850195914b129a9e9d8efb313cbcd793a51d0c52fd10  perms 0b1111
+  ASSERT output contains: balance 500
+  ASSERT output contains: queue empty
+  ASSERT output contains: nonce 5
+
+PASS

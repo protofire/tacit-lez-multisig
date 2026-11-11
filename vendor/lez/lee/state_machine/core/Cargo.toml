@@ -1,0 +1,35 @@
+[package]
+name = "lee_core"
+version = "0.1.0"
+edition = "2024"
+license = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+risc0-zkvm.workspace = true
+borsh = { workspace = true, features = ["de_strict_order"] }
+serde.workspace = true
+serde_with.workspace = true
+thiserror.workspace = true
+base58.workspace = true
+derive_more = { workspace = true, features = [
+  "debug",
+  "display",
+  "as_ref",
+  "from",
+  "into",
+  "deref",
+] }
+ml-kem = { workspace = true }
+chacha20 = { version = "0.10" }
+
+[dev-dependencies]
+serde_json.workspace = true
+sha2.workspace = true
+
+[features]
+default = []
+host = ["ml-kem/getrandom"]
+test_utils = ["host"]

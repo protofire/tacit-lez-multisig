@@ -1,0 +1,454 @@
+use std::collections::HashMap;
+
+use key_protocol::key_management::{
+    KeyChain, key_tree::chain_index::ChainIndex, secret_holders::SecretSpendingKey,
+};
+use lee::{
+    Account, AccountId, PrivateKey, PublicKey, Recipient, RecoveryBinding, V03State,
+    program::Program,
+};
+use lee_core::PrivateAccountKind;
+use serde::{Deserialize, Serialize};
+
+const PRIVATE_KEY_PUB_ACC_A: [u8; 32] = [
+    16, 162, 106, 154, 236, 125, 52, 184, 35, 100, 238, 174, 69, 197, 41, 77, 187, 10, 118, 75, 0,
+    11, 148, 238, 185, 181, 133, 17, 220, 72, 124, 77,
+];
+
+const PRIVATE_KEY_PUB_ACC_B: [u8; 32] = [
+    113, 121, 64, 177, 204, 85, 229, 214, 178, 6, 109, 191, 29, 154, 63, 38, 242, 18, 244, 219, 8,
+    208, 35, 136, 23, 127, 207, 237, 216, 169, 190, 27,
+];
+
+const SSK_PRIV_ACC_A: [u8; 32] = [
+    93, 13, 190, 240, 250, 33, 108, 195, 176, 40, 144, 61, 4, 28, 58, 112, 53, 161, 42, 238, 155,
+    27, 23, 176, 208, 121, 15, 229, 165, 180, 99, 143,
+];
+
+const SSK_PRIV_ACC_B: [u8; 32] = [
+    48, 175, 124, 10, 230, 240, 166, 14, 249, 254, 157, 226, 208, 124, 122, 177, 203, 139, 192,
+    180, 43, 120, 55, 151, 50, 21, 113, 22, 254, 83, 148, 56,
+];
+
+// LGO-scale balances (10^9 atomic units per LGO): once transactions pay real
+// fees, the pre-fee 10_000/20_000 could not afford a single reservation.
+const PUB_ACC_A_INITIAL_BALANCE: u128 = 10_000_000_000_000;
+const PUB_ACC_B_INITIAL_BALANCE: u128 = 20_000_000_000_000;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PublicAccountPublicInitialData {
+    pub account_id: AccountId,
+    pub balance: u128,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PublicAccountPrivateInitialData {
+    pub account_id: lee::AccountId,
+    pub pub_sign_key: lee::PrivateKey,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrivateAccountPrivateInitialData {
+    pub account: lee_core::account::Account,
+    pub key_chain: KeyChain,
+    pub chain_index: Option<ChainIndex>,
+    pub kind: PrivateAccountKind,
+}
+
+impl PrivateAccountPrivateInitialData {
+    #[must_use]
+    pub fn account_id(&self) -> lee::AccountId {
+        self.recipient().account_id()
+    }
+
+    /// The public material a sender binds to this account's canonical address.
+    #[must_use]
+    pub fn recipient(&self) -> Recipient {
+        Recipient {
+            npk: self.key_chain.nullifier_public_key,
+            vpk: self.key_chain.viewing_public_key.clone(),
+            kind: self.kind.clone(),
+            opening: None,
+        }
+    }
+}
+
+#[must_use]
+pub fn initial_pub_accounts_private_keys() -> Vec<PublicAccountPrivateInitialData> {
+    let acc1_pub_sign_key = PrivateKey::try_new(PRIVATE_KEY_PUB_ACC_A).unwrap();
+
+    let acc2_pub_sign_key = PrivateKey::try_new(PRIVATE_KEY_PUB_ACC_B).unwrap();
+
+    vec![
+        PublicAccountPrivateInitialData {
+            account_id: AccountId::from(&PublicKey::new_from_private_key(&acc1_pub_sign_key)),
+            pub_sign_key: acc1_pub_sign_key,
+        },
+        PublicAccountPrivateInitialData {
+            account_id: AccountId::from(&PublicKey::new_from_private_key(&acc2_pub_sign_key)),
+            pub_sign_key: acc2_pub_sign_key,
+        },
+    ]
+}
+
+fn key_chain_from_ssk(ssk: [u8; 32]) -> KeyChain {
+    let secret_spending_key = SecretSpendingKey(ssk);
+    let private_key_holder = secret_spending_key.produce_private_key_holder(None);
+    let nullifier_public_key = private_key_holder.generate_nullifier_public_key();
+    let viewing_public_key = private_key_holder.generate_viewing_public_key();
+
+    KeyChain {
+        secret_spending_key,
+        private_key_holder,
+        nullifier_public_key,
+        viewing_public_key,
+    }
+}
+
+/// The testnet's private accounts. They start uninitialized: genesis funds them with pending
+/// credits that their owners receive.
+#[must_use]
+pub fn initial_priv_accounts_private_keys() -> Vec<PrivateAccountPrivateInitialData> {
+    let key_chain_1 = key_chain_from_ssk(SSK_PRIV_ACC_A);
+    let key_chain_2 = key_chain_from_ssk(SSK_PRIV_ACC_B);
+
+    vec![
+        PrivateAccountPrivateInitialData {
+            account: Account::default(),
+            key_chain: key_chain_1,
+            chain_index: None,
+            kind: PrivateAccountKind::Regular,
+        },
+        PrivateAccountPrivateInitialData {
+            account: Account::default(),
+            key_chain: key_chain_2,
+            chain_index: None,
+            kind: PrivateAccountKind::Regular,
+        },
+    ]
+}
+
+/// The recovery bindings of the private accounts' canonical addresses.
+///
+/// Generated once under fresh encapsulation randomness by `regenerate_genesis_recovery_bindings`
+/// and pinned, so every node builds the same genesis and genesis credits to these addresses
+/// publish.
+#[must_use]
+pub fn initial_recovery_bindings() -> Vec<RecoveryBinding> {
+    borsh::from_slice(include_bytes!("genesis_recovery_bindings.bin"))
+        .expect("the pinned recovery bindings decode")
+}
+
+#[must_use]
+pub fn initial_public_user_accounts() -> Vec<PublicAccountPublicInitialData> {
+    let initial_account_ids = initial_pub_accounts_private_keys()
+        .into_iter()
+        .map(|data| data.account_id)
+        .collect::<Vec<_>>();
+
+    vec![
+        PublicAccountPublicInitialData {
+            account_id: initial_account_ids[0],
+            balance: PUB_ACC_A_INITIAL_BALANCE,
+        },
+        PublicAccountPublicInitialData {
+            account_id: initial_account_ids[1],
+            balance: PUB_ACC_B_INITIAL_BALANCE,
+        },
+    ]
+}
+
+fn initial_public_accounts() -> HashMap<AccountId, Account> {
+    initial_public_user_accounts()
+        .iter()
+        .map(|acc_data| (acc_data.account_id, Account::funded(acc_data.balance)))
+        .chain([(
+            system_accounts::bridge_account_id(),
+            system_accounts::bridge_account(),
+        )])
+        .chain(
+            system_accounts::clock_account_ids()
+                .into_iter()
+                .map(|clock_id| (clock_id, system_accounts::clock_account())),
+        )
+        .chain([(
+            system_accounts::sequencer_stake_config_account_id(),
+            system_accounts::sequencer_stake_config_account(None, None),
+        )])
+        .chain([
+            (
+                system_accounts::fee_state_account_id(),
+                system_accounts::fee_state_account(),
+            ),
+            (system_accounts::fee_escrow_account_id(), Account::default()),
+            (system_accounts::fee_inbox_account_id(), Account::default()),
+        ])
+        .collect()
+}
+
+fn initial_programs(cross_zone: bool) -> Vec<(AccountId, Program)> {
+    let mut programs = vec![
+        (programs::clock_account_id(), programs::clock()),
+        (programs::fee_account_id(), programs::fee()),
+        (programs::bridge_account_id(), programs::bridge()),
+        (
+            programs::sequencer_stake_account_id(),
+            programs::sequencer_stake(),
+        ),
+    ];
+    if cross_zone {
+        // Builtins baked into every node (genesis-block ELFs would exceed the
+        // inscription size limit); registered only on cross_zone zones, fixed at
+        // genesis.
+        programs.extend([
+            (
+                programs::cross_zone_inbox_account_id(),
+                programs::cross_zone_inbox(),
+            ),
+            (
+                programs::cross_zone_outbox_account_id(),
+                programs::cross_zone_outbox(),
+            ),
+            (programs::ping_sender_account_id(), programs::ping_sender()),
+            (
+                programs::ping_receiver_account_id(),
+                programs::ping_receiver(),
+            ),
+            (programs::bridge_lock_account_id(), programs::bridge_lock()),
+            (
+                programs::wrapped_token_account_id(),
+                programs::wrapped_token(),
+            ),
+        ]);
+    }
+    programs
+}
+
+/// The pre-genesis state. `cross_zone` selects whether the six cross-zone builtins are
+/// registered, each at a name-derived, `image_id`-independent address. Not defaulted: every
+/// caller states the choice.
+#[must_use]
+pub fn initial_state(cross_zone: bool) -> V03State {
+    lee::V03State::new()
+        .with_public_accounts(initial_public_accounts())
+        .with_recovery_bindings(initial_recovery_bindings())
+        .with_named_programs(initial_programs(cross_zone))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr as _;
+
+    use key_protocol::key_management::secret_holders::ViewingSecretKey;
+
+    use super::*;
+
+    const VSK_D_PRIV_ACC_A: [u8; 32] = [
+        37, 79, 203, 133, 143, 28, 149, 228, 53, 195, 241, 240, 40, 28, 11, 81, 126, 209, 253, 79,
+        167, 213, 4, 162, 9, 183, 132, 78, 248, 92, 134, 198,
+    ];
+
+    const VSK_Z_PRIV_ACC_A: [u8; 32] = [
+        197, 94, 192, 175, 68, 106, 201, 229, 125, 33, 51, 144, 81, 154, 230, 37, 209, 230, 150,
+        29, 73, 203, 166, 56, 65, 178, 205, 15, 101, 81, 111, 150,
+    ];
+
+    const VSK_D_PRIV_ACC_B: [u8; 32] = [
+        221, 28, 168, 185, 246, 234, 210, 245, 219, 3, 116, 190, 178, 31, 49, 79, 246, 147, 101,
+        161, 120, 32, 218, 191, 23, 209, 8, 38, 184, 92, 104, 177,
+    ];
+
+    const VSK_Z_PRIV_ACC_B: [u8; 32] = [
+        167, 68, 2, 131, 197, 10, 239, 237, 52, 80, 87, 51, 21, 153, 205, 222, 117, 159, 204, 16,
+        66, 136, 209, 158, 243, 254, 168, 14, 19, 222, 8, 97,
+    ];
+
+    const PUB_ACC_A_TEXT_ADDR: &str = "6iArKUXxhUJqS7kCaPNhwMWt3ro71PDyBj7jwAyE2VQV";
+    const PUB_ACC_B_TEXT_ADDR: &str = "7wHg9sbJwc6h3NP1S9bekfAzB8CHifEcxKswCKUt3YQo";
+
+    const PRIV_ACC_A_TEXT_ADDR: &str = "44KVvzvh2ephQU9aR5snboGUXKgS1FnPYh1W4KZKwmhm";
+    const PRIV_ACC_B_TEXT_ADDR: &str = "478hD6LXFTYu5gRRkWkCyXPRsWgCwAfRredoCUfxr5b9";
+
+    #[test]
+    fn pub_state_consistency() {
+        let init_accs_private_data = initial_pub_accounts_private_keys();
+        let init_accs_pub_data = initial_public_user_accounts();
+
+        assert_eq!(
+            init_accs_private_data[0].account_id,
+            init_accs_pub_data[0].account_id
+        );
+
+        assert_eq!(
+            init_accs_private_data[1].account_id,
+            init_accs_pub_data[1].account_id
+        );
+
+        assert_eq!(
+            init_accs_pub_data[0],
+            PublicAccountPublicInitialData {
+                account_id: AccountId::from_str(PUB_ACC_A_TEXT_ADDR).unwrap(),
+                balance: PUB_ACC_A_INITIAL_BALANCE,
+            }
+        );
+
+        assert_eq!(
+            init_accs_pub_data[1],
+            PublicAccountPublicInitialData {
+                account_id: AccountId::from_str(PUB_ACC_B_TEXT_ADDR).unwrap(),
+                balance: PUB_ACC_B_INITIAL_BALANCE,
+            }
+        );
+    }
+
+    #[test]
+    fn private_state_consistency() {
+        let init_private_accs_keys = initial_priv_accounts_private_keys();
+
+        // `nsk`/`npk` carry no constants of their own: the key chains derive from `SSK_*`, and the
+        // two address canaries below pin H(PREFIX || npk || vpk), so drift anywhere
+        // in ask -> nsk -> npk or in vsk -> vpk moves one of them. Nothing is left unpinned.
+        // `VSK_*` stays pinned separately because it is the last value on the vsk -> vpk leg that
+        // a test can compare directly.
+        assert_eq!(
+            init_private_accs_keys[0]
+                .key_chain
+                .private_key_holder
+                .viewing_secret_key,
+            ViewingSecretKey::new(VSK_D_PRIV_ACC_A, VSK_Z_PRIV_ACC_A)
+        );
+        assert_eq!(
+            init_private_accs_keys[1]
+                .key_chain
+                .private_key_holder
+                .viewing_secret_key,
+            ViewingSecretKey::new(VSK_D_PRIV_ACC_B, VSK_Z_PRIV_ACC_B)
+        );
+
+        assert_eq!(
+            init_private_accs_keys[0].account_id().to_string(),
+            PRIV_ACC_A_TEXT_ADDR
+        );
+        assert_eq!(
+            init_private_accs_keys[1].account_id().to_string(),
+            PRIV_ACC_B_TEXT_ADDR
+        );
+    }
+
+    #[test]
+    fn the_pinned_recovery_bindings_name_the_private_accounts_none_of_them_funded() {
+        let state = initial_state(false);
+        let accounts = initial_priv_accounts_private_keys();
+        let bindings = initial_recovery_bindings();
+        assert_eq!(bindings.len(), accounts.len());
+
+        for (data, binding) in accounts.iter().zip(&bindings) {
+            let keys = &data.key_chain.private_key_holder;
+            assert_eq!(binding.address, data.account_id());
+            assert_eq!(
+                Recipient::recover(
+                    binding.address,
+                    &binding.note,
+                    &keys.viewing_secret_key.d,
+                    &keys.viewing_secret_key.z
+                ),
+                Some(data.recipient())
+            );
+            assert_eq!(state.recovery_binding(binding.address), Some(&binding.note));
+            assert!(
+                !state.is_spent(&lee_core::Nullifier::for_account_initialization(
+                    &binding.address,
+                    &keys.nullifier_secret_key()
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn genesis_fee_accounts_are_registered_with_their_records() {
+        let state = initial_state(true);
+
+        let ids = system_accounts::fee_account_ids();
+        // state, escrow, inbox — all distinct, all non-default.
+        for (i, id) in ids.iter().enumerate() {
+            assert_ne!(*id, AccountId::default());
+            for other in &ids[i + 1..] {
+                assert_ne!(id, other);
+            }
+            let account = state.get_account_by_id(*id);
+            assert_eq!(account.data.native_balance().unwrap(), 0);
+        }
+
+        // The fee-state account carries the genesis market state; escrow and
+        // inbox start empty.
+        let fee_state = fee_core::state::FeeState::from_bytes(
+            state
+                .get_account_by_id(system_accounts::fee_state_account_id())
+                .data
+                .actor_state(programs::fee_account_id()),
+        );
+        assert_eq!(fee_state, fee_core::state::FeeState::genesis());
+        for empty_id in [
+            system_accounts::fee_escrow_account_id(),
+            system_accounts::fee_inbox_account_id(),
+        ] {
+            assert!(
+                state
+                    .get_account_by_id(empty_id)
+                    .data
+                    .actor_states
+                    .is_empty()
+            );
+        }
+    }
+
+    #[test]
+    fn genesis_system_accounts_have_expected_contents() {
+        // System-account IDs must be distinct and non-default, and the genesis
+        // bridge account must carry its expected field values. Catches mutations
+        // that replace `system_bridge_account` with `Default::default()`, delete
+        // its `balance`, or replace `system_bridge_account_id` with
+        // `Default::default()`.
+        let bridge_id = system_accounts::bridge_account_id();
+        assert_ne!(bridge_id, AccountId::default());
+
+        let state = initial_state(true);
+
+        let bridge = state.get_account_by_id(bridge_id);
+        assert_eq!(
+            bridge.data.native_balance().unwrap(),
+            u128::MAX,
+            "the bridge holds the whole supply"
+        );
+        assert_eq!(
+            bridge.data.actor_states.keys().copied().collect::<Vec<_>>(),
+            vec![lee_core::native_token::NATIVE_TOKEN_PROGRAM_ID],
+            "the bridge holds balance alone, no program's record"
+        );
+    }
+
+    /// Gating changes membership only: no other program moves.
+    #[test]
+    fn cross_zone_builtins_register_only_when_declared() {
+        let cross_zone_ids = [
+            programs::cross_zone_inbox_account_id(),
+            programs::cross_zone_outbox_account_id(),
+            programs::ping_sender_account_id(),
+            programs::ping_receiver_account_id(),
+            programs::bridge_lock_account_id(),
+            programs::wrapped_token_account_id(),
+        ];
+        let with = initial_state(true);
+        let without = initial_state(false);
+        for id in cross_zone_ids {
+            assert!(
+                with.get_builtin_program(id).is_some(),
+                "registered when declared"
+            );
+            assert!(
+                without.get_builtin_program(id).is_none(),
+                "absent when not declared"
+            );
+        }
+    }
+}

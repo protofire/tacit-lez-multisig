@@ -1,0 +1,10 @@
+[package]
+name = "bridge_program"
+version = "0.1.0"
+edition = "2024"
+license = { workspace = true }
+
+[dependencies]
+borsh.workspace = true
+bridge_core.workspace = true
+lee_core.workspace = true

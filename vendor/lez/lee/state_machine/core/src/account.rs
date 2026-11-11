@@ -1,0 +1,500 @@
+use std::{collections::BTreeMap, fmt::Display, str::FromStr};
+
+pub use actor_state::ActorState;
+use base58::{FromBase58 as _, ToBase58 as _};
+use borsh::{BorshDeserialize, BorshSerialize};
+use risc0_zkvm::sha::{Impl, Sha256 as _};
+use serde::{Deserialize, Serialize};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
+
+use crate::{
+    NullifierSecretKey,
+    native_token::{InvalidBalanceEncoding, NATIVE_TOKEN_PROGRAM_ID, decode_balance},
+};
+
+pub mod actor_state;
+
+#[derive(Copy, Debug, Default, Clone, Eq, PartialEq)]
+pub struct Nonce(pub u128);
+
+impl Nonce {
+    pub const fn public_account_nonce_increment(&mut self) {
+        self.0 = self
+            .0
+            .checked_add(1)
+            .expect("Overflow when incrementing nonce");
+    }
+
+    #[must_use]
+    pub fn private_account_nonce_increment(self, nsk: &NullifierSecretKey) -> Self {
+        let mut bytes: [u8; 64] = [0_u8; 64];
+        bytes[..32].copy_from_slice(nsk);
+        bytes[32..48].copy_from_slice(&self.0.to_le_bytes());
+        let result: [u8; 32] = Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap();
+        let result = result.first_chunk::<16>().unwrap();
+
+        Self(u128::from_le_bytes(*result))
+    }
+}
+
+impl From<u128> for Nonce {
+    fn from(value: u128) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Nonce> for u128 {
+    fn from(value: Nonce) -> Self {
+        value.0
+    }
+}
+
+impl Serialize for Nonce {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        Serialize::serialize(&self.0, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Nonce {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(<u128 as Deserialize>::deserialize(deserializer)?.into())
+    }
+}
+
+impl BorshSerialize for Nonce {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        BorshSerialize::serialize(&self.0, writer)
+    }
+}
+
+impl BorshDeserialize for Nonce {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        Ok(<u128 as BorshDeserialize>::deserialize_reader(reader)?.into())
+    }
+}
+
+pub type Balance = u128;
+/// A base-fee price or tip, in atomic units; fits `u64` by the per-block gas caps
+/// (balances and totals are [`Balance`], `u128`).
+pub type Fee = u64;
+/// A gas amount (execution or storage work), bounded per block.
+pub type Gas = u64;
+/// A raw zkVM execution cycle count or budget, before it is priced into [`Gas`].
+pub type Cycles = u64;
+
+/// Account to be used both in public and private contexts.
+#[derive(
+    Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
+)]
+pub struct Account {
+    pub nonce: Nonce,
+    pub data: AccountData,
+}
+
+impl Account {
+    #[must_use]
+    pub fn with_actor_state(mut self, program: AccountId, data: ActorState) -> Self {
+        self.data.set_actor_state(program, data);
+        self
+    }
+}
+
+impl Account {
+    #[must_use]
+    pub fn project(&self, program_account_ids: impl IntoIterator<Item = AccountId>) -> Self {
+        Self {
+            nonce: self.nonce,
+            data: self.data.project(program_account_ids),
+        }
+    }
+
+    #[must_use]
+    pub fn funded(balance: Balance) -> Self {
+        Self::default().with_actor_state(
+            NATIVE_TOKEN_PROGRAM_ID,
+            crate::native_token::encode_balance(balance),
+        )
+    }
+}
+
+/// An account's program actor states, including its native balance at [`NATIVE_TOKEN_PROGRAM_ID`].
+#[derive(
+    Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
+)]
+#[serde(deny_unknown_fields)]
+pub struct AccountData {
+    pub actor_states: BTreeMap<AccountId, ActorState>,
+}
+
+impl AccountData {
+    #[must_use]
+    pub fn actor_state(&self, program: AccountId) -> &ActorState {
+        const EMPTY: &ActorState = &ActorState::empty();
+        self.actor_states.get(&program).unwrap_or(EMPTY)
+    }
+
+    pub fn set_actor_state(&mut self, program: AccountId, data: ActorState) {
+        if data.is_empty() {
+            self.actor_states.remove(&program);
+        } else {
+            self.actor_states.insert(program, data);
+        }
+    }
+
+    #[must_use]
+    pub fn with_actor_state(mut self, program: AccountId, data: ActorState) -> Self {
+        self.set_actor_state(program, data);
+        self
+    }
+
+    pub fn native_balance(&self) -> Result<Balance, InvalidBalanceEncoding> {
+        decode_balance(self.actor_state(NATIVE_TOKEN_PROGRAM_ID))
+    }
+
+    /// Returns the requested actor states, with empty data for missing actor states.
+    #[must_use]
+    pub fn project(&self, program_account_ids: impl IntoIterator<Item = AccountId>) -> Self {
+        Self {
+            actor_states: program_account_ids
+                .into_iter()
+                .map(|program| (program, self.actor_state(program).clone()))
+                .collect(),
+        }
+    }
+
+    /// Updates the supplied actor states. Empty data removes an actor state.
+    pub fn update(&mut self, projection: &Self) {
+        for (program, data) in &projection.actor_states {
+            self.set_actor_state(*program, data.clone());
+        }
+    }
+}
+
+/// One account's actor state under one program: the state one handler owns.
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Hash,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
+pub struct Actor {
+    pub account_id: AccountId,
+    pub program_account_id: AccountId,
+}
+
+impl Actor {
+    #[must_use]
+    pub const fn new(account_id: AccountId, program_account_id: AccountId) -> Self {
+        Self {
+            account_id,
+            program_account_id,
+        }
+    }
+
+    #[must_use]
+    pub const fn native_balance(account_id: AccountId) -> Self {
+        Self::new(account_id, NATIVE_TOKEN_PROGRAM_ID)
+    }
+}
+
+#[derive(
+    Default,
+    Copy,
+    Clone,
+    SerializeDisplay,
+    DeserializeFromStr,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    BorshSerialize,
+    BorshDeserialize,
+)]
+pub struct AccountId {
+    value: [u8; 32],
+}
+
+impl std::fmt::Debug for AccountId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value.to_base58())
+    }
+}
+
+impl AccountId {
+    #[must_use]
+    pub const fn new(value: [u8; 32]) -> Self {
+        Self { value }
+    }
+
+    #[must_use]
+    pub const fn value(&self) -> &[u8; 32] {
+        &self.value
+    }
+
+    #[must_use]
+    pub const fn into_value(self) -> [u8; 32] {
+        self.value
+    }
+}
+
+impl AsRef<[u8]> for AccountId {
+    fn as_ref(&self) -> &[u8] {
+        &self.value
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AccountIdError {
+    #[error("invalid base58: {0:?}")]
+    InvalidBase58(base58::FromBase58Error),
+    #[error("invalid length: expected 32 bytes, got {0}")]
+    InvalidLength(usize),
+}
+
+impl FromStr for AccountId {
+    type Err = AccountIdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = s.from_base58().map_err(AccountIdError::InvalidBase58)?;
+        if bytes.len() != 32 {
+            return Err(AccountIdError::InvalidLength(bytes.len()));
+        }
+        let mut value = [0_u8; 32];
+        value.copy_from_slice(&bytes);
+        Ok(Self { value })
+    }
+}
+
+impl Display for AccountId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value.to_base58())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_persisted_account_with_a_legacy_balance_field_is_refused() {
+        let current = serde_json::from_str::<Account>(r#"{"nonce":7,"data":{"actor_states":{}}}"#)
+            .expect("the stored shape loads");
+        assert_eq!(current.nonce, Nonce(7));
+        assert_eq!(current.data.native_balance(), Ok(0));
+
+        let legacy = serde_json::from_str::<Account>(
+            r#"{"nonce":7,"data":{"balance":123,"actor_states":{}}}"#,
+        );
+
+        assert!(legacy.is_err(), "a legacy balance field was accepted");
+    }
+
+    #[test]
+    fn zero_balance_account_data_creation() {
+        let new_acc = Account::default();
+
+        assert_eq!(new_acc.data.native_balance(), Ok(0));
+    }
+
+    #[test]
+    fn zero_nonce_account_data_creation() {
+        let new_acc = Account::default();
+
+        assert_eq!(new_acc.nonce.0, 0);
+    }
+
+    #[test]
+    fn default_account_has_no_actor_states() {
+        let new_acc = Account::default();
+
+        assert!(new_acc.data.actor_states.is_empty());
+    }
+
+    #[cfg(feature = "host")]
+    #[test]
+    fn parse_valid_account_id() {
+        let base58_str = "11111111111111111111111111111111";
+        let account_id: AccountId = base58_str.parse().unwrap();
+        assert_eq!(account_id.value, [0_u8; 32]);
+    }
+
+    #[cfg(feature = "host")]
+    #[test]
+    fn parse_invalid_base58() {
+        let base58_str = "00".repeat(32); // invalid base58 chars
+        let result = base58_str.parse::<AccountId>().unwrap_err();
+        assert!(matches!(result, AccountIdError::InvalidBase58(_)));
+    }
+
+    #[cfg(feature = "host")]
+    #[test]
+    fn parse_wrong_length_short() {
+        let base58_str = "11".repeat(31); // 62 chars = 31 bytes
+        let result = base58_str.parse::<AccountId>().unwrap_err();
+        assert!(matches!(result, AccountIdError::InvalidLength(_)));
+    }
+
+    #[cfg(feature = "host")]
+    #[test]
+    fn parse_wrong_length_long() {
+        let base58_str = "11".repeat(33); // 66 chars = 33 bytes
+        let result = base58_str.parse::<AccountId>().unwrap_err();
+        assert!(matches!(result, AccountIdError::InvalidLength(_)));
+    }
+
+    #[test]
+    fn default_account_id() {
+        let default_account_id = AccountId::default();
+        let expected_account_id = AccountId::new([0; 32]);
+        assert_eq!(default_account_id, expected_account_id);
+    }
+
+    #[test]
+    fn increment_private_nonce() {
+        let nsk: NullifierSecretKey = [42_u8; 32];
+        let initial_nonce = Nonce(37_937_661_125_547_691_021_612_781_941_709_513_486);
+        assert_eq!(
+            Nonce::default().private_account_nonce_increment(&nsk),
+            initial_nonce
+        );
+        let nonce = initial_nonce.private_account_nonce_increment(&nsk);
+        let expected_nonce = Nonce(327_300_903_218_789_900_388_409_116_014_290_259_894);
+        assert_eq!(nonce, expected_nonce);
+    }
+
+    #[test]
+    fn increment_public_nonce() {
+        let value = 42_u128;
+        let mut nonce = Nonce(value);
+        nonce.public_account_nonce_increment();
+        let expected_nonce = Nonce(value + 1);
+        assert_eq!(nonce, expected_nonce);
+    }
+
+    #[test]
+    fn serde_roundtrip_for_nonce() {
+        let nonce: Nonce = 7_u128.into();
+
+        let serde_serialized_nonce = serde_json::to_vec(&nonce).unwrap();
+
+        let nonce_restored = serde_json::from_slice(&serde_serialized_nonce).unwrap();
+
+        assert_eq!(nonce, nonce_restored);
+    }
+
+    #[test]
+    fn borsh_roundtrip_for_nonce() {
+        let nonce: Nonce = 7_u128.into();
+
+        let borsh_serialized_nonce = borsh::to_vec(&nonce).unwrap();
+
+        let nonce_restored = borsh::from_slice(&borsh_serialized_nonce).unwrap();
+
+        assert_eq!(nonce, nonce_restored);
+    }
+
+    #[test]
+    fn set_actor_state_prunes_an_emptied_actor_state() {
+        let program = AccountId::new([3; 32]);
+        let mut account = Account::funded(10).with_actor_state(program, b"record".to_vec().into());
+
+        account.data.set_actor_state(program, ActorState::empty());
+
+        assert!(!account.data.actor_states.contains_key(&program));
+        assert_eq!(account, Account::funded(10));
+    }
+
+    #[test]
+    fn project_reads_absent_actor_states_as_empty() {
+        let held = AccountId::new([3; 32]);
+        let absent = AccountId::new([4; 32]);
+        let data = Account::funded(9)
+            .data
+            .with_actor_state(held, b"record".to_vec().into());
+
+        let projection = data.project([held, absent]);
+
+        assert_eq!(projection.native_balance(), Ok(0));
+        assert_eq!(
+            projection.actor_states.get(&absent),
+            Some(&ActorState::empty())
+        );
+        assert_eq!(projection.actor_states.len(), 2);
+    }
+
+    #[test]
+    fn update_keeps_the_nonce_and_prunes_emptied_actor_states() {
+        let program = AccountId::new([3; 32]);
+        let mut account = Account {
+            nonce: Nonce(7),
+            ..Account::funded(9).with_actor_state(program, b"record".to_vec().into())
+        };
+
+        account.data.update(&AccountData {
+            actor_states: [(program, ActorState::empty())].into(),
+        });
+
+        assert_eq!(account.nonce, Nonce(7));
+        assert_eq!(account.data.native_balance(), Ok(9));
+        assert_eq!(account.data.actor_states.len(), 1);
+    }
+
+    #[test]
+    fn project_then_update_is_identity_on_the_touched_actor_states() {
+        let touched = AccountId::new([3; 32]);
+        let untouched = AccountId::new([4; 32]);
+        let data = Account::funded(9)
+            .data
+            .with_actor_state(touched, b"record".to_vec().into())
+            .with_actor_state(untouched, b"other".to_vec().into());
+
+        let mut applied = data.clone();
+        applied.update(&data.project([touched]));
+
+        assert_eq!(applied, data);
+    }
+
+    #[test]
+    fn an_account_json_round_trip_holds_the_largest_balance_and_nonce() {
+        let account = Account {
+            nonce: Nonce(u128::MAX),
+            ..Account::funded(u128::MAX)
+                .with_actor_state(AccountId::new([3; 32]), b"record".to_vec().into())
+        };
+
+        let json = serde_json::to_string(&account).unwrap();
+        let restored: Account = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(account, restored);
+        assert_eq!(restored.nonce, Nonce(u128::MAX));
+        assert_eq!(restored.data.native_balance(), Ok(u128::MAX));
+    }
+
+    #[test]
+    fn an_account_serializes_with_its_data_nested() {
+        let account = Account {
+            nonce: Nonce(7),
+            ..Account::funded(9)
+        };
+
+        assert_eq!(
+            serde_json::to_string(&account).unwrap(),
+            r#"{"nonce":7,"data":{"actor_states":{"11111111111111111111111111111111":[9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}}}"#
+        );
+    }
+}

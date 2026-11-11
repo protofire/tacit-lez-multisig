@@ -1,0 +1,13 @@
+## init: init
+[init] RESULT op=init deployed_at=Hun9qyYaYMzkrdDF2W65kXky3h113WANuGXpmXCk45LM image_id=9170f3e9b712f5ff2bcf7b59eb74d3f2d4cb219256ec1418ff492f9497204e1d fee_shield_block=42 dev_mode=true
+[init] STAT wall_s=181.52 max_rss_mib=25 gpu_before_mib=1449 gpu_peak_mib=1450 gpu_peak_delta_mib=1
+## create-c5: create 5 7 c5
+[create-c5] RESULT op=create label=c5 m=5 n=7 sync_s=0.04 dry_run_s=0.03 send_tx_s=0.21 prove_est_s=0.17 incl_s=30.01 e2e_client_s=30.25 tx_bytes=88193 proof_bytes=44153 block=62 tx=703070798cd8e67b99aea1569d03b03cee2aa61750832492afb0ee609a433f6d image_id=9170f3e9b712f5ff2bcf7b59eb74d3f2d4cb219256ec1418ff492f9497204e1d dev_mode=true
+[create-c5] STAT wall_s=30.55 max_rss_mib=59 gpu_before_mib=1449 gpu_peak_mib=1449 gpu_peak_delta_mib=0
+## fund-c5: fund c5 100000
+[fund-c5] RESULT op=fund label=c5 m=5 n=7 amount=100000 sync_s=0.00 dry_run_s=0.01 send_tx_s=0.14 prove_est_s=0.14 incl_s=30.01 e2e_client_s=30.16 tx_bytes=89033 proof_bytes=44501 block=72 tx=116b384b689e6135d57d3292fc8655b9302d5cd0a4da634223dffbcf3328a89f image_id=9170f3e9b712f5ff2bcf7b59eb74d3f2d4cb219256ec1418ff492f9497204e1d dev_mode=true
+[fund-c5] STAT wall_s=30.38 max_rss_mib=55 gpu_before_mib=1449 gpu_peak_mib=1449 gpu_peak_delta_mib=0
+## exec-dev: exec c5
+[exec-dev] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.10 send_tx_s=0.42 prove_est_s=0.32 incl_s=30.01 e2e_client_s=30.43 tx_bytes=88657 proof_bytes=44385 block=83 tx=b83f150233f66ed70e0f1fd50c64ec27166c216128000de84df7c9c059d07b5f image_id=9170f3e9b712f5ff2bcf7b59eb74d3f2d4cb219256ec1418ff492f9497204e1d dev_mode=true
+[exec-dev] CHECK vault_balance 100000->99999 recipient_balance 1->2 nonce 0->1
+[exec-dev] STAT wall_s=30.78 max_rss_mib=58 gpu_before_mib=1449 gpu_peak_mib=1450 gpu_peak_delta_mib=1

@@ -1,0 +1,204 @@
+use super::*;
+
+#[test]
+fn transition_from_native_transfer_invocation_credits_empty_and_funded_recipients() {
+    let from_key = PrivateKey::try_new([1; 32]).unwrap();
+    let from = AccountId::from(&PublicKey::new_from_private_key(&from_key));
+    let to_key = PrivateKey::try_new([2; 32]).unwrap();
+    let to = AccountId::from(&PublicKey::new_from_private_key(&to_key));
+
+    for (recipient_balance, amount) in [(0, 5), (100, 8)] {
+        let mut state = V03State::new().with_public_accounts([
+            (from, Account::funded(200)),
+            (to, Account::funded(recipient_balance)),
+        ]);
+        assert_eq!(
+            state.get_account_by_id(to) == Account::default(),
+            recipient_balance == 0
+        );
+
+        let tx = transfer_transaction(from, &from_key, 0, to, &to_key, 0, amount);
+        state.transition_from_public_transaction(&tx, 1, 0).unwrap();
+
+        assert_eq!(
+            state.get_account_by_id(from).data.native_balance(),
+            Ok(200 - amount)
+        );
+        assert_eq!(
+            state.get_account_by_id(to).data.native_balance(),
+            Ok(recipient_balance + amount)
+        );
+        assert_eq!(state.get_account_by_id(from).nonce, Nonce(1));
+        assert_eq!(state.get_account_by_id(to).nonce, Nonce(1));
+    }
+}
+
+#[test]
+fn transition_from_sequence_of_native_transfer_invocations() {
+    let key1 = PrivateKey::try_new([8; 32]).unwrap();
+    let account_id1 = AccountId::from(&PublicKey::new_from_private_key(&key1));
+    let key2 = PrivateKey::try_new([2; 32]).unwrap();
+    let account_id2 = AccountId::from(&PublicKey::new_from_private_key(&key2));
+    let initial_data = [(account_id1, Account::funded(100))];
+    let mut state = V03State::new().with_public_accounts(initial_data);
+    let key3 = PrivateKey::try_new([3; 32]).unwrap();
+    let account_id3 = AccountId::from(&PublicKey::new_from_private_key(&key3));
+    let balance_to_move = 5;
+
+    let tx = transfer_transaction(
+        account_id1,
+        &key1,
+        0,
+        account_id2,
+        &key2,
+        0,
+        balance_to_move,
+    );
+    state.transition_from_public_transaction(&tx, 1, 0).unwrap();
+    let balance_to_move = 3;
+    let tx = transfer_transaction(
+        account_id2,
+        &key2,
+        1,
+        account_id3,
+        &key3,
+        0,
+        balance_to_move,
+    );
+    state.transition_from_public_transaction(&tx, 1, 0).unwrap();
+
+    assert_eq!(
+        state.get_account_by_id(account_id1).data.native_balance(),
+        Ok(95)
+    );
+    assert_eq!(
+        state.get_account_by_id(account_id2).data.native_balance(),
+        Ok(2)
+    );
+    assert_eq!(
+        state.get_account_by_id(account_id3).data.native_balance(),
+        Ok(3)
+    );
+    assert_eq!(state.get_account_by_id(account_id1).nonce, Nonce(1));
+    assert_eq!(state.get_account_by_id(account_id2).nonce, Nonce(2));
+    assert_eq!(state.get_account_by_id(account_id3).nonce, Nonce(1));
+}
+
+#[test]
+fn a_guest_writes_its_own_actor_state_and_sends_a_transfer_of_the_same_account() {
+    let program_id = scripted_id();
+    let stranger = AccountId::new([9; 32]);
+    let stranger_record: ActorState = b"untouched".to_vec().into();
+
+    let sender_key = PrivateKey::try_new([11; 32]).unwrap();
+    let sender = AccountId::from(&PublicKey::new_from_private_key(&sender_key));
+    let recipient = AccountId::new([12; 32]);
+    let written: Vec<u8> = vec![7; 4];
+    let amount: u128 = 30;
+
+    let mut state = V03State::new()
+        .with_public_accounts([(
+            sender,
+            Account::funded(100).with_actor_state(stranger, stranger_record.clone()),
+        )])
+        .with_empty_public_accounts([recipient])
+        .with_programs([crate::test_methods::scripted()]);
+
+    let writer = Actor::new(sender, program_id);
+    let script = Script::write(written.clone())
+        .send_sync(Actor::native_balance(sender), &transfer(recipient, amount));
+    let tx = public_tx(
+        writer,
+        vec![
+            writer,
+            Actor::native_balance(sender),
+            Actor::native_balance(recipient),
+        ],
+        vec![Nonce(0)],
+        script,
+        &[&sender_key],
+    );
+
+    state.transition_from_public_transaction(&tx, 1, 0).unwrap();
+
+    let sender_post = state.get_account_by_id(sender);
+    assert_eq!(sender_post.data.actor_state(program_id).as_ref(), written);
+    assert_eq!(sender_post.data.native_balance(), Ok(70));
+    assert_eq!(sender_post.data.actor_state(stranger), &stranger_record);
+    assert_eq!(sender_post.nonce, Nonce(1));
+    assert_eq!(
+        state.get_account_by_id(recipient).data.native_balance(),
+        Ok(30)
+    );
+}
+
+#[test]
+fn a_transfer_that_overflows_the_recipient_is_rejected() {
+    let from_key = PrivateKey::try_new([1; 32]).unwrap();
+    let from = AccountId::from(&PublicKey::new_from_private_key(&from_key));
+    let to_key = PrivateKey::try_new([2; 32]).unwrap();
+    let to = AccountId::from(&PublicKey::new_from_private_key(&to_key));
+    let mut state = V03State::new().with_public_accounts([
+        (from, Account::funded(1)),
+        (to, Account::funded(Balance::MAX)),
+    ]);
+
+    let tx = transfer_transaction(from, &from_key, 0, to, &to_key, 0, 1);
+    let result = state.transition_from_public_transaction(&tx, 1, 0);
+
+    let Err(LeeError::InvalidProgramBehavior(InvalidProgramBehaviorError::NativeTransferFailed(
+        TransferError::BalanceOverflow { account_id },
+    ))) = result
+    else {
+        panic!("an overflowing credit was accepted: {result:?}");
+    };
+    assert_eq!(account_id, to);
+    assert_eq!(
+        state.get_account_by_id(to).data.native_balance(),
+        Ok(Balance::MAX)
+    );
+}
+
+#[test]
+fn a_transfer_from_a_non_canonical_balance_is_rejected() {
+    let from_key = PrivateKey::try_new([1; 32]).unwrap();
+    let from = AccountId::from(&PublicKey::new_from_private_key(&from_key));
+    let to_key = PrivateKey::try_new([2; 32]).unwrap();
+    let to = AccountId::from(&PublicKey::new_from_private_key(&to_key));
+    let zero_padded = ActorState::from(vec![0; 16]);
+    let mut state = V03State::new().with_public_accounts([(
+        from,
+        Account::default().with_actor_state(NATIVE_TOKEN_PROGRAM_ID, zero_padded),
+    )]);
+
+    let tx = transfer_transaction(from, &from_key, 0, to, &to_key, 0, 1);
+    let result = state.transition_from_public_transaction(&tx, 1, 0);
+
+    let Err(LeeError::InvalidProgramBehavior(InvalidProgramBehaviorError::NativeTransferFailed(
+        TransferError::InvalidBalance(_),
+    ))) = result
+    else {
+        panic!("a non-canonical balance was spent: {result:?}");
+    };
+}
+
+#[test]
+fn a_native_transfer_to_the_sender_itself_preserves_its_balance() {
+    let key = PrivateKey::try_new([1; 32]).unwrap();
+    let account_id = AccountId::from(&PublicKey::new_from_private_key(&key));
+    let sender = Actor::native_balance(account_id);
+    let mut state = V03State::new().with_public_accounts([(account_id, Account::funded(200))]);
+
+    let tx = public_tx(
+        sender,
+        vec![sender],
+        vec![Nonce(0)],
+        transfer(account_id, 30),
+        &[&key],
+    );
+    state.transition_from_public_transaction(&tx, 1, 0).unwrap();
+
+    let account = state.get_account_by_id(account_id);
+    assert_eq!(account.data.native_balance(), Ok(200));
+    assert_eq!(account.nonce, Nonce(1));
+}

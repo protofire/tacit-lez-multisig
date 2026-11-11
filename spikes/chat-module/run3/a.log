@@ -1,0 +1,237 @@
+member key A 68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac
+$ [A 19:59:19] msig setup --payer-key <repo>/spikes/chat-module/run3/net/payer.key
+[setup] deploying multisig image 30ac32ea92b1dd63a0b3b2d5d6031e0d013737cbfa72d7b5069e8646d39d4c63 at P = 28hN5zkSqaMCicjuDLpzYGjFtQg7EfgzAEpsu1M46Cuh
+Transaction hash is 95cf7fc5f4374815f223f034b418ff8223f392468ffecc129691b2b0cf558b1b
+Transaction is included in block 2
+Transaction hash is ebf466fc0689f9e8007c7d3dc8383256668ac898a1086d2dd038fb2982d26805
+Transaction is included in block 12
+Transaction hash is d6b3e1b55b74168cd30f4d1013c412f84590fc197ef67c765e55eb8be9497a5e
+Transaction is included in block 22
+Transaction hash is cacd5392e8598562dbbcc899b70d8ae8274dc08d254e36c0b1e1ed5eec38673b
+Transaction is included in block 32
+  shield fee funds: tx e659338909c69cb118c42a52158e8c5e5a0504e55391313ae170d4cb6e37fecd included in block 42
+[setup] private fee account EYKHU1XpB5QfnVZ9LZyUzMkeK1a6PcRsbvkAFNV84Khu
+(exit 0)
+$ [A 20:02:52] msig create --members 68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac,9557be292b6b72e20b5e1b4cd6613194bd9bccdbe88efc9ac08315af634e752b,5ebf5931802d4b3e8314b8730ba3024933c292de517407ab30163792547d185c --threshold 2
+[create] vault V = E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ; vault file <repo>/spikes/chat-module/run3/w/A/msig-vault.json (secret: give it to members out of band)
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Create
+  [prove] done in 0.7 s
+  [wait] for inclusion
+  Create: tx ee293440d6c1b39f987e3f44fd60ca6d614b3432e5fb209c01e6a27100ce4a2e included in block 73
+threshold 2 of 3  epoch 0  nonce 0  balance 0
+  member 0  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  perms 0b0111
+  member 1  9557be292b6b72e20b5e1b4cd6613194bd9bccdbe88efc9ac08315af634e752b  perms 0b0111
+  member 2  5ebf5931802d4b3e8314b8730ba3024933c292de517407ab30163792547d185c  perms 0b0111
+(exit 0)
+  ASSERT output contains: threshold 2 of 3
+$ [A 20:03:23] msig fund 1000 --payer-key <repo>/spikes/chat-module/run3/net/payer.key
+  fund vault: tx b6e012947bfd668b4ff9e99099aeaaa3412cefb9149596836e665d0725516ae2 included in block 83
+(exit 0)
+$ [A 20:03:54] msig fund 1 --payer-key <repo>/spikes/chat-module/run3/net/payer.key --to-key <repo>/spikes/chat-module/run3/net/recipient.key
+public account GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg
+  fund public account: tx 0ec0dd29fbd7d9895c5520aaafccfcad145b621708b2b82e0ceb2d3a9d14a617 included in block 93
+(exit 0)
+$ [A 20:04:25] logosctl daemon start --detach
+Daemon started (pid 42880)
+Logs: <repo>/spikes/chat-module/run3/home/A/session/logs/daemon.log
+$ [A 20:04:26] logosctl install <repo>/spikes/chat-module/run3/../out/lgx/delivery_module-0.3.0.lgx -y
+{"affected_loaded":[],"changes":[{"action":"install","file":"<repo>/spikes/chat-module/run3/../out/lgx/delivery_module-0.3.0.lgx","fromVersion":"","name":"delivery_module","signature":"unsigned","toVersion":"0.3.0"}],"installed":["delivery_module"],"op":"install","reloaded":[],"status":"ok","stopped_dependents":[]}
+$ [A 20:04:38] logosctl install <repo>/spikes/chat-module/run3/../out/lgx/chat_module-0.3.0.lgx -y
+{"affected_loaded":[],"changes":[{"action":"install","file":"<repo>/spikes/chat-module/run3/../out/lgx/chat_module-0.3.0.lgx","fromVersion":"","name":"chat_module","signature":"unsigned","toVersion":"0.3.0"}],"installed":["chat_module"],"op":"install","reloaded":[],"status":"ok","stopped_dependents":[]}
+$ [A 20:04:44] logosctl module load chat_module
+{"dependencies_loaded":["delivery_module"],"module":"chat_module","optional_skipped":[{"module":"libp2p_module","named_by":"delivery_module","reason":"not_installed"},{"module":"liblogos_rln_module","named_by":"delivery_module","reason":"not_installed"}],"status":"ok","version":"0.3.0"}
+$ [A 20:05:17] logosctl call chat_module init json:{"delivery_preset":"logos.dev","log_level":"info"}
+{"method":"init","module":"chat_module","result":{"error":null,"success":true,"value":null},"status":"ok"}
+$ [A 20:05:18] logosctl call chat_module status
+{"method":"status","module":"chat_module","result":{"convo_count":0,"delivery_adopted":false,"delivery_state":"initialising","detail":""},"status":"ok"}
+$ [A 20:05:20] logosctl call chat_module status
+{"method":"status","module":"chat_module","result":{"convo_count":0,"delivery_adopted":false,"delivery_state":"online","detail":""},"status":"ok"}
+$ [A 20:05:28] logosctl call chat_module get_address
+{"method":"get_address","module":"chat_module","result":"ea1caf0f48fbac310d75a7679cc28c768478956f883a3e51130de8f4475c1211","status":"ok"}
+$ [A 20:05:28] logosctl call chat_module create_group_conversation msig-room run3
+{"method":"create_group_conversation","module":"chat_module","result":{"error":null,"success":true,"value":"3d45bf537e"},"status":"ok"}
+$ [A 20:05:28] logosctl call chat_module add_group_member 3d45bf537e c59fdfdb0a79d6c0d6204b374e210317d879b731ccbc49285bde68119984c810
+{"method":"add_group_member","module":"chat_module","result":{"error":null,"success":true,"value":null},"status":"ok"}
+$ [A 20:05:28] logosctl call chat_module add_group_member 3d45bf537e e5436f161570c6cac68f52eef91ccfceefb7e887a08fef730444ba22777dd6d8
+{"method":"add_group_member","module":"chat_module","result":{"error":null,"success":true,"value":null},"status":"ok"}
+$ [A 20:06:31] logosctl call chat_module list_group_members 3d45bf537e
+{"method":"list_group_members","module":"chat_module","result":[{"address":"ea1caf0f48fbac310d75a7679cc28c768478956f883a3e51130de8f4475c1211","pending":false},{"address":"c59fdfdb0a79d6c0d6204b374e210317d879b731ccbc49285bde68119984c810","pending":false},{"address":"e5436f161570c6cac68f52eef91ccfceefb7e887a08fef730444ba22777dd6d8","pending":false}],"status":"ok"}
+$ [A 20:06:31] msig propose --to GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg --amount 300 --key <repo>/spikes/chat-module/run3/w/A/member.key --out <repo>/spikes/chat-module/run3/w/A/prop.json
+wrote <repo>/spikes/chat-module/run3/w/A/prop.json
+vault        E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+epoch        0
+nonce        0
+expiry       1794344792328 (unix ms)
+action hash  7f1fdef5cf8dda475baf15f18ea163448e71bee59adb1a5bc29ff171ddbade7e
+approve digest 2eccd255f2bd0eeb31b964708266e66e0279870baa7321699b4ca6409c5b0e3a
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+  authority  true
+  transfer   recipient GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg
+             amount    300
+signatures
+  propose  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  valid
+(exit 0)
+  (posting 983 chars)
+$ [A 20:06:32] logosctl call chat_module send_message 3d45bf537e msig1:prop:ewogICJ2ZXJzaW9uIjogMSwKICAic2lnbmVkIjogImMzNjdlZTg2NTUxODI0OWQ3MjhhODU3NjE5ZTlhMmJlNGEyNGU5YWEyOTcwZjY0MjEyYmViMWY4N2M1Yzk0ODUwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA4YjE0OGM3YTEwMTAwMDA3ZjFmZGVmNWNmOGRkYTQ3NWJhZjE1ZjE4ZWExNjM0NDhlNzFiZWU1OWFkYjFhNWJjMjlmZjE3MWRkYmFkZTdlMDBjMzY3ZWU4NjU1MTgyNDlkNzI4YTg1NzYxOWU5YTJiZTRhMjRlOWFhMjk3MGY2NDIxMmJlYjFmODdjNWM5NDg1MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDMxMDAwMDAwMDBlNzAyMzAxMzU2ZTA3MTYwNmYzYTkyMTRiOGZiNzgzNDVkNDE4NGZhNTgyMGI5NmMxZDNmYjg0NjlkODYzN2NiMmMwMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMSIsCiAgInNpZ3MiOiBbCiAgICB7CiAgICAgICJyb2xlIjogInByb3Bvc2UiLAogICAgICAia2V5IjogIjY4NzY3NDM4ZDZiYzFjNDIzYjdiMmVlZWIwZmQ0ZmZiMjVkMGE1NjE2ZDI3N2E5MmQ2NzQ3YzhkNTY4ZjI4YWMiLAogICAgICAic2lnIjogIjM3Mzg0MzNmNTIwN2NiZTAzODk1Yzc1NzUzMmMyMzZhZmUzNjgxZDFjZGI5OThmZDhjN2M3N2RjNzhhYjNmY2MwYTI5ZjU4YjQwYjYyMTJjNGZiOWEyN2RmM2FiYjg2NjQxY2JlMTVlMDEzMzU1YjY3OTM4YzgxNzlhOTgzZWJjIgogICAgfQogIF0KfQo=
+{"method":"send_message","module":"chat_module","result":{"error":null,"success":true,"value":null},"status":"ok"}
+  room message 0.txt from {"sender": "c59fdfdb0a79d6c0d6204b374e210317d879b731ccbc49285bde68119984c810", "timestamp_ms": 1794341194965}
+$ [A 20:06:38] msig show <repo>/spikes/chat-module/run3/w/A/one.json
+vault        E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+epoch        0
+nonce        0
+expiry       1794344792328 (unix ms)
+action hash  7f1fdef5cf8dda475baf15f18ea163448e71bee59adb1a5bc29ff171ddbade7e
+approve digest 2eccd255f2bd0eeb31b964708266e66e0279870baa7321699b4ca6409c5b0e3a
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+  authority  true
+  transfer   recipient GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg
+             amount    300
+signatures
+  propose  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  valid
+  approve  9557be292b6b72e20b5e1b4cd6613194bd9bccdbe88efc9ac08315af634e752b  valid
+(exit 0)
+  room message 1.txt from {"sender": "e5436f161570c6cac68f52eef91ccfceefb7e887a08fef730444ba22777dd6d8", "timestamp_ms": 1794341195256}
+$ [A 20:06:38] msig show <repo>/spikes/chat-module/run3/w/A/one.json
+vault        E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+epoch        0
+nonce        0
+expiry       1794344792328 (unix ms)
+action hash  7f1fdef5cf8dda475baf15f18ea163448e71bee59adb1a5bc29ff171ddbade7e
+approve digest 2eccd255f2bd0eeb31b964708266e66e0279870baa7321699b4ca6409c5b0e3a
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+  authority  true
+  transfer   recipient GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg
+             amount    300
+signatures
+  propose  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  valid
+  approve  5ebf5931802d4b3e8314b8730ba3024933c292de517407ab30163792547d185c  valid
+(exit 0)
+  room message 2.txt from {"sender": "c59fdfdb0a79d6c0d6204b374e210317d879b731ccbc49285bde68119984c810", "timestamp_ms": 1794341195932}
+$ [A 20:06:38] msig show <repo>/spikes/chat-module/run3/w/A/one.json
+vault        E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+epoch        0
+nonce        0
+expiry       1794344792328 (unix ms)
+action hash  7f1fdef5cf8dda475baf15f18ea163448e71bee59adb1a5bc29ff171ddbade7e
+approve digest 2eccd255f2bd0eeb31b964708266e66e0279870baa7321699b4ca6409c5b0e3a
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+  authority  true
+  transfer   recipient GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg
+             amount    300
+signatures
+  propose  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  valid
+  approve  9557be292b6b72e20b5e1b4cd6613194bd9bccdbe88efc9ac08315af634e752b  INVALID
+Error: some signatures do not verify against the signed bytes
+(exit 1)
+$ [A 20:06:38] msig execute <repo>/spikes/chat-module/run3/w/A/forged-plus-c.json --key <repo>/spikes/chat-module/run3/w/A/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 0 nonce 0, balance 1000
+[3/4] 1 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+Error: BELOW THRESHOLD: need 2 approvals, have 1
+(exit 1)
+  ASSERT output contains: 1 valid approval
+  ASSERT output contains: BELOW THRESHOLD
+$ [A 20:06:38] msig show <repo>/spikes/chat-module/run3/w/A/merged.json
+vault        E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+epoch        0
+nonce        0
+expiry       1794344792328 (unix ms)
+action hash  7f1fdef5cf8dda475baf15f18ea163448e71bee59adb1a5bc29ff171ddbade7e
+approve digest 2eccd255f2bd0eeb31b964708266e66e0279870baa7321699b4ca6409c5b0e3a
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+  authority  true
+  transfer   recipient GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg
+             amount    300
+signatures
+  propose  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  valid
+  approve  9557be292b6b72e20b5e1b4cd6613194bd9bccdbe88efc9ac08315af634e752b  valid
+  approve  5ebf5931802d4b3e8314b8730ba3024933c292de517407ab30163792547d185c  valid
+(exit 0)
+$ [A 20:06:38] msig execute <repo>/spikes/chat-module/run3/w/A/merged.json --key <repo>/spikes/chat-module/run3/w/A/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 0 nonce 0, balance 1000
+[3/4] 2 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+[4/4] proving and submitting
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Execute
+  [prove] done in 0.9 s
+  [wait] for inclusion
+  Execute: tx 3364209c21bcac225b982b228767d0d699a479b4e6b4f2eff4a1ffa083769778 included in block 148
+executed. vault now:
+threshold 2 of 3  epoch 0  nonce 1  balance 700
+  member 0  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  perms 0b0111
+  member 1  9557be292b6b72e20b5e1b4cd6613194bd9bccdbe88efc9ac08315af634e752b  perms 0b0111
+  member 2  5ebf5931802d4b3e8314b8730ba3024933c292de517407ab30163792547d185c  perms 0b0111
+(exit 0)
+  ASSERT output contains: 2 valid approval
+  ASSERT output contains: balance 700
+  ASSERT output contains: nonce 1
+$ [A 20:07:12] msig propose --to GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg --amount 50 --key <repo>/spikes/chat-module/run3/w/A/member.key --out <repo>/spikes/chat-module/run3/w/A/prop2.json
+wrote <repo>/spikes/chat-module/run3/w/A/prop2.json
+vault        E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+epoch        0
+nonce        1
+expiry       1794344832202 (unix ms)
+action hash  616e6071982afeec2f031f82fe12a45abcd539e4eb9cb6713b75d54c1d3d52d7
+approve digest 853113686455061908edf280991c8650b8d1027723de8fb40c9d99328ac96834
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+  authority  true
+  transfer   recipient GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg
+             amount    50
+signatures
+  propose  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  valid
+(exit 0)
+  (posting 984 chars)
+$ [A 20:07:12] logosctl call chat_module send_message 3d45bf537e msig1:prop2:ewogICJ2ZXJzaW9uIjogMSwKICAic2lnbmVkIjogImMzNjdlZTg2NTUxODI0OWQ3MjhhODU3NjE5ZTlhMmJlNGEyNGU5YWEyOTcwZjY0MjEyYmViMWY4N2M1Yzk0ODUwMDAwMDAwMDAwMDAwMDAwMDEwMDAwMDAwMDAwMDAwMGNhNGM0OWM3YTEwMTAwMDA2MTZlNjA3MTk4MmFmZWVjMmYwMzFmODJmZTEyYTQ1YWJjZDUzOWU0ZWI5Y2I2NzEzYjc1ZDU0YzFkM2Q1MmQ3MDBjMzY3ZWU4NjU1MTgyNDlkNzI4YTg1NzYxOWU5YTJiZTRhMjRlOWFhMjk3MGY2NDIxMmJlYjFmODdjNWM5NDg1MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDMxMDAwMDAwMDBlNzAyMzAxMzU2ZTA3MTYwNmYzYTkyMTRiOGZiNzgzNDVkNDE4NGZhNTgyMGI5NmMxZDNmYjg0NjlkODYzN2NiMzIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMSIsCiAgInNpZ3MiOiBbCiAgICB7CiAgICAgICJyb2xlIjogInByb3Bvc2UiLAogICAgICAia2V5IjogIjY4NzY3NDM4ZDZiYzFjNDIzYjdiMmVlZWIwZmQ0ZmZiMjVkMGE1NjE2ZDI3N2E5MmQ2NzQ3YzhkNTY4ZjI4YWMiLAogICAgICAic2lnIjogIjYyNDMwYjNmNTdmYzY0Y2FjYWQ4MDAzYWU2N2ZjNzY5NTViMzM3ZGNjN2VkY2M4NzE0OWRjZGQ0YWY3ZDkxMmJiMmIzMGM0NGJlMThhZGVmNWJlYTQ3NzdiNzlhMzlkOTkwNzk5MTYzNjgwOTA5ZjAxYTdhYTdkOTRjMjM0N2Q1IgogICAgfQogIF0KfQo=
+{"method":"send_message","module":"chat_module","result":{"error":null,"success":true,"value":null},"status":"ok"}
+$ [A 20:10:23] msig approve <repo>/spikes/chat-module/run3/w/A/prop2.json --key <repo>/spikes/chat-module/run3/w/A/member.key
+vault        E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+epoch        0
+nonce        1
+expiry       1794344832202 (unix ms)
+action hash  616e6071982afeec2f031f82fe12a45abcd539e4eb9cb6713b75d54c1d3d52d7
+approve digest 853113686455061908edf280991c8650b8d1027723de8fb40c9d99328ac96834
+action       CALL
+  program    native-token (11111111111111111111111111111111)
+  account    E9nRHuZZJ66BC3Ue2DiqxM6bUbLDeYoxsVNZEjkamLmJ
+  authority  true
+  transfer   recipient GYm7ZQFUhZYsTKpWh7GZH6KX2jwqX8MiJavkqBFXvHPg
+             amount    50
+signatures
+  propose  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  valid
+  approve  9557be292b6b72e20b5e1b4cd6613194bd9bccdbe88efc9ac08315af634e752b  valid
+wrote <repo>/spikes/chat-module/run3/w/A/prop2.json
+signed as approve by 68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac
+(exit 0)
+$ [A 20:10:23] msig execute <repo>/spikes/chat-module/run3/w/A/prop2.json --key <repo>/spikes/chat-module/run3/w/A/member.key
+[1/4] syncing wallet
+[2/4] vault at epoch 0 nonce 1, balance 700
+[3/4] 2 valid approval(s) from current members (threshold 2), 0 advisory rejection(s)
+[4/4] proving and submitting
+  [sync] wallet to latest block
+  [prove] simulating, proving, submitting Execute
+  [prove] done in 0.9 s
+  [wait] for inclusion
+  Execute: tx 788a602f3f191b3a44ce9e414feb1801ad1e889311cd92faac17604e22ca0a99 included in block 224
+executed. vault now:
+threshold 2 of 3  epoch 0  nonce 2  balance 650
+  member 0  68767438d6bc1c423b7b2eeeb0fd4ffb25d0a5616d277a92d6747c8d568f28ac  perms 0b0111
+  member 1  9557be292b6b72e20b5e1b4cd6613194bd9bccdbe88efc9ac08315af634e752b  perms 0b0111
+  member 2  5ebf5931802d4b3e8314b8730ba3024933c292de517407ab30163792547d185c  perms 0b0111
+(exit 0)
+  ASSERT output contains: balance 650
+  ASSERT output contains: nonce 2
+{"message":"Daemon shutting down.","status":"ok"}

@@ -1,0 +1,26 @@
+# modules/headless/headless.sh MODE=retry  2026-11-10T16:23:15Z  commit d307009-dirty
+# LEZ v0.4.0-rc1 1806e87 sequencer $LEZ_SEQUENCER_BIN on 127.0.0.1:3074, RISC0_DEV_MODE=1 (proofs are dev-mode receipts)
+$ direct create <repo>/target/module-headless/wallet 3 2 1000
+Transaction hash is 0558c4e079d782895fd087772d6787bedfaa142991658dfbaa32f05737113d75
+Transaction is included in block 2
+Transaction hash is e9dd8dfe70ec33ff878e6e9ceecbfff23da23d12781758b5113be54424008e14
+Transaction is included in block 12
+Transaction hash is dabd9a90d4a015d5832062046614602251a7c16a876fd4d1bc5799f37b49706a
+Transaction is included in block 22
+Transaction hash is fcd230679545ddd7f1549ed775bec8b73c741bc86a7bf903787af3ae3dd33477
+Transaction is included in block 32
+{"balance":"1000","createBlock":53,"epoch":0,"fundBlock":63,"members":3,"nonce":0,"ok":true,"program":"Hun9qyYaYMzkrdDF2W65kXky3h113WANuGXpmXCk45LM","threshold":2,"vault":"BS6duQw8MNLV3ww1mYVUtThsqgMY6CXNphQXLnxshaPH"}
+$ direct execute <repo>/target/module-headless/wallet alice 100 1,2
+{"approvals":2,"block":83,"nonce":1,"ok":true,"recipient":"CtaAYHGi4Ap2FWst3aMDEBkteBQGp3QAbK9wqCLhyv9h","recipientAfter":"101","recipientBefore":"1","threshold":2,"vaultAfter":"900","vaultBefore":"1000"}
+# H2: inclusion polling fails after submit (seq_tx_poll_max_blocks=1), then the caller retries the same payment
+$ direct execute <repo>/target/module-headless/wallet alice 300 1,2
+{"error":"Transaction not found in preconfigured amount of blocks","ok":false}
+$ direct execute <repo>/target/module-headless/wallet alice 300 1,2
+{"nonce":2,"ok":true,"recipient":"CtaAYHGi4Ap2FWst3aMDEBkteBQGp3QAbK9wqCLhyv9h","recipientAfter":"401","reconciled":{"amount":"300","hash":"9fa8089c570d4ce4d8eaaede282a498c91b5e2ae61092b5c3088cdc4eb57bd89","nonce":1,"recipient":"CtaAYHGi4Ap2FWst3aMDEBkteBQGp3QAbK9wqCLhyv9h"},"vaultAfter":"600"}
+# H2 expect: alice ends at 401 (1 + 100 + 300), V at 600; a second 300 is a double payment
+# H1: create died after funding, before the marker (simulated: msig.json removed), then the caller retries create
+$ direct create <repo>/target/module-headless/wallet 3 2 1000
+{"error":"group 'msig-module' already in this wallet home (an earlier create got that far, no msig.json): refusing to replace it; its vault keeps its keys","ok":false}
+# H1 expect: refused (the group of V1 must survive); then V1 still executes
+$ direct execute <repo>/target/module-headless/wallet alice 50 1,2
+{"approvals":2,"block":97,"nonce":3,"ok":true,"recipient":"CtaAYHGi4Ap2FWst3aMDEBkteBQGp3QAbK9wqCLhyv9h","recipientAfter":"451","recipientBefore":"401","threshold":2,"vaultAfter":"550","vaultBefore":"600"}

@@ -1,0 +1,45 @@
+# Build artifacts
+target/
+**/target/
+
+# RocksDB data
+rocksdb/
+**/rocksdb/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/
+ci_scripts/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Non-build project files
+completions/
+configs/
+Justfile
+clippy.toml
+rustfmt.toml
+flake.nix
+flake.lock
+LICENSE
+
+# Docker compose files (not needed inside build)
+docker-compose*.yml
+**/docker-compose*.yml

@@ -1,0 +1,16 @@
+[package]
+name = "system_accounts"
+version = "0.1.0"
+edition = "2024"
+license = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+lee_core.workspace = true
+fee_core.workspace = true
+bridge_core.workspace = true
+clock_core.workspace = true
+sequencer_stake_core.workspace = true
+programs.workspace = true

@@ -1,0 +1,103 @@
+#![expect(
+    clippy::shadow_unrelated,
+    clippy::tests_outside_test_module,
+    reason = "We don't care about these in tests"
+)]
+
+use std::time::Duration;
+
+use anyhow::Result;
+use indexer_service_protocol::Account;
+use integration_tests::{
+    L2_TO_L1_TIMEOUT, TIME_TO_WAIT_FOR_BLOCK_SECONDS, config::INITIAL_PUBLIC_BALANCES_FOR_WALLET,
+    public_mention,
+};
+use wallet::{
+    account::Label,
+    cli::{Command, programs::native_token_transfer::AuthTransferSubcommand},
+};
+
+#[path = "indexer_ffi_helpers/mod.rs"]
+mod indexer_ffi_helpers;
+
+#[test]
+fn indexer_ffi_state_consistency_with_labels() -> Result<()> {
+    let (mut ctx, indexer_ffi, _indexer_dir) = indexer_ffi_helpers::setup()?;
+
+    // Assign labels to both accounts
+    let from_label = Label::new("idx-sender-label");
+    let to_label = Label::new("idx-receiver-label");
+
+    let label_cmd = Command::Account(wallet::cli::account::AccountSubcommand::Label {
+        account_id: public_mention(ctx.ctx().existing_public_accounts()[0]),
+        label: from_label.clone(),
+    });
+    ctx.block_on_mut(|ctx| wallet::cli::execute_subcommand(ctx.wallet_mut(), label_cmd))?;
+
+    let label_cmd = Command::Account(wallet::cli::account::AccountSubcommand::Label {
+        account_id: public_mention(ctx.ctx().existing_public_accounts()[1]),
+        label: to_label.clone(),
+    });
+    ctx.block_on_mut(|ctx| wallet::cli::execute_subcommand(ctx.wallet_mut(), label_cmd))?;
+
+    // Send using labels instead of account IDs
+    let command = Command::AuthTransfer(AuthTransferSubcommand::Send {
+        from: from_label.into(),
+        to: Some(to_label.into()),
+        to_npk: None,
+        to_vpk: None,
+        to_keys: None,
+        amount: 100,
+        to_pk: None,
+    });
+
+    ctx.block_on_mut(|ctx| wallet::cli::execute_subcommand(ctx.wallet_mut(), command))?;
+
+    log::info!("Waiting for next block creation");
+    std::thread::sleep(Duration::from_secs(TIME_TO_WAIT_FOR_BLOCK_SECONDS));
+
+    let acc_1_balance = ctx.block_on(|ctx| {
+        sequencer_service_rpc::RpcClient::get_account_balance(
+            ctx.sequencer_client(),
+            ctx.existing_public_accounts()[0],
+        )
+    })?;
+    let acc_2_balance = ctx.block_on(|ctx| {
+        sequencer_service_rpc::RpcClient::get_account_balance(
+            ctx.sequencer_client(),
+            ctx.existing_public_accounts()[1],
+        )
+    })?;
+
+    // Charged transfer: the recipient gains exactly the amount; the sender
+    // pays the amount plus a positive fee within the protocol ceiling.
+    assert_eq!(acc_2_balance, INITIAL_PUBLIC_BALANCES_FOR_WALLET[1] + 100);
+    let fee = (INITIAL_PUBLIC_BALANCES_FOR_WALLET[0] - 100)
+        .checked_sub(acc_1_balance)
+        .expect("sender must be debited at least the transferred amount");
+    assert!(
+        fee > 0 && fee <= wallet::DEFAULT_MAX_FEE,
+        "the sender must pay a positive fee within the protocol ceiling, got {fee}",
+    );
+
+    log::info!("Waiting for indexer to parse blocks");
+    std::thread::sleep(L2_TO_L1_TIMEOUT);
+
+    let acc1_ind_state = indexer_ffi_helpers::indexed_account(
+        &indexer_ffi,
+        &ctx.ctx().existing_public_accounts()[0],
+    );
+
+    let acc1_seq_state = ctx.block_on(|ctx| {
+        sequencer_service_rpc::RpcClient::get_account(
+            ctx.sequencer_client(),
+            ctx.existing_public_accounts()[0],
+        )
+    })?;
+
+    assert_eq!(acc1_ind_state, acc1_seq_state.map(Account::from));
+
+    log::info!("Indexer state is consistent after label-based transfer");
+
+    Ok(())
+}

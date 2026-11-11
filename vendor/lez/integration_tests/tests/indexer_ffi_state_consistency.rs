@@ -1,0 +1,144 @@
+#![expect(
+    clippy::shadow_unrelated,
+    clippy::tests_outside_test_module,
+    reason = "We don't care about these in tests"
+)]
+
+use std::time::Duration;
+
+use anyhow::{Context as _, Result};
+use indexer_service_protocol::Account;
+use integration_tests::{
+    TIME_TO_WAIT_FOR_BLOCK_SECONDS, config::INITIAL_PUBLIC_BALANCES_FOR_WALLET, private_mention,
+    public_mention, utils::L2_TO_L1_TIMEOUT, verify_commitment_is_in_state,
+};
+use lee::AccountId;
+use wallet::cli::{Command, programs::native_token_transfer::AuthTransferSubcommand};
+
+#[path = "indexer_ffi_helpers/mod.rs"]
+mod indexer_ffi_helpers;
+
+#[test]
+fn indexer_ffi_state_consistency() -> Result<()> {
+    let (mut ctx, indexer_ffi, _indexer_dir) = indexer_ffi_helpers::setup()?;
+
+    let command = Command::AuthTransfer(AuthTransferSubcommand::Send {
+        from: public_mention(ctx.ctx().existing_public_accounts()[0]),
+        to: Some(public_mention(ctx.ctx().existing_public_accounts()[1])),
+        to_npk: None,
+        to_vpk: None,
+        to_keys: None,
+        amount: 100,
+        to_pk: None,
+    });
+
+    ctx.block_on_mut(|ctx| wallet::cli::execute_subcommand(ctx.wallet_mut(), command))?;
+
+    log::info!("Waiting for next block creation");
+    std::thread::sleep(Duration::from_secs(TIME_TO_WAIT_FOR_BLOCK_SECONDS));
+
+    log::info!("Checking correct balance move");
+    let acc_1_balance = ctx.block_on(|ctx| {
+        sequencer_service_rpc::RpcClient::get_account_balance(
+            ctx.sequencer_client(),
+            ctx.existing_public_accounts()[0],
+        )
+    })?;
+    let acc_2_balance = ctx.block_on(|ctx| {
+        sequencer_service_rpc::RpcClient::get_account_balance(
+            ctx.sequencer_client(),
+            ctx.existing_public_accounts()[1],
+        )
+    })?;
+
+    log::info!("Balance of sender: {acc_1_balance:#?}");
+    log::info!("Balance of receiver: {acc_2_balance:#?}");
+
+    // Charged transfer: the recipient gains exactly the amount; the sender
+    // pays the amount plus a positive fee within the protocol ceiling.
+    assert_eq!(acc_2_balance, INITIAL_PUBLIC_BALANCES_FOR_WALLET[1] + 100);
+    let fee = (INITIAL_PUBLIC_BALANCES_FOR_WALLET[0] - 100)
+        .checked_sub(acc_1_balance)
+        .expect("sender must be debited at least the transferred amount");
+    assert!(
+        fee > 0 && fee <= wallet::DEFAULT_MAX_FEE,
+        "the sender must pay a positive fee within the protocol ceiling, got {fee}",
+    );
+
+    let from: AccountId = ctx.ctx().existing_private_accounts()[0];
+    let to: AccountId = ctx.ctx().existing_private_accounts()[1];
+
+    let command = Command::AuthTransfer(AuthTransferSubcommand::Send {
+        from: private_mention(from),
+        to: Some(private_mention(to)),
+        to_npk: None,
+        to_vpk: None,
+        to_keys: None,
+        amount: 100,
+        to_pk: None,
+    });
+
+    ctx.block_on_mut(|ctx| wallet::cli::execute_subcommand(ctx.wallet_mut(), command))?;
+
+    log::info!("Waiting for next block creation");
+    std::thread::sleep(Duration::from_secs(TIME_TO_WAIT_FOR_BLOCK_SECONDS));
+
+    let new_commitment1 = ctx
+        .ctx()
+        .wallet()
+        .get_private_account_commitment(from)
+        .context("Failed to get private account commitment for sender")?;
+    let commitment_check1 =
+        ctx.block_on(|ctx| verify_commitment_is_in_state(new_commitment1, ctx.sequencer_client()));
+    assert!(commitment_check1);
+
+    let new_commitment2 = ctx
+        .ctx()
+        .wallet()
+        .get_private_account_commitment(to)
+        .context("Failed to get private account commitment for receiver")?;
+    let commitment_check2 =
+        ctx.block_on(|ctx| verify_commitment_is_in_state(new_commitment2, ctx.sequencer_client()));
+    assert!(commitment_check2);
+
+    log::info!("Successfully transferred privately to owned account");
+
+    // WAIT
+    log::info!("Waiting for indexer to parse blocks");
+    std::thread::sleep(L2_TO_L1_TIMEOUT);
+
+    let acc1_ind_state = indexer_ffi_helpers::indexed_account(
+        &indexer_ffi,
+        &ctx.ctx().existing_public_accounts()[0],
+    );
+    let acc2_ind_state = indexer_ffi_helpers::indexed_account(
+        &indexer_ffi,
+        &ctx.ctx().existing_public_accounts()[1],
+    );
+
+    log::info!("Checking correct state transition");
+    let acc1_seq_state = ctx.block_on(|ctx| {
+        sequencer_service_rpc::RpcClient::get_account(
+            ctx.sequencer_client(),
+            ctx.existing_public_accounts()[0],
+        )
+    })?;
+    let acc2_seq_state = ctx.block_on(|ctx| {
+        sequencer_service_rpc::RpcClient::get_account(
+            ctx.sequencer_client(),
+            ctx.existing_public_accounts()[1],
+        )
+    })?;
+
+    assert_eq!(acc1_ind_state, acc1_seq_state.map(Account::from));
+    assert_eq!(acc2_ind_state, acc2_seq_state.map(Account::from));
+    assert_eq!(
+        indexer_ffi_helpers::indexed_account(&indexer_ffi, &AccountId::new([0xAB; 32])),
+        None,
+        "an account the chain never touched is absent, not empty"
+    );
+
+    // ToDo: Check private state transition
+
+    Ok(())
+}

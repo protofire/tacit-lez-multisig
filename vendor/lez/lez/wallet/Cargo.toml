@@ -1,0 +1,66 @@
+[package]
+name = "wallet"
+version = "0.1.0"
+edition = "2024"
+license = { workspace = true }
+
+[lints]
+workspace = true
+
+[dependencies]
+lee_core.workspace = true
+lee.workspace = true
+common.workspace = true
+fee_core.workspace = true
+key_protocol.workspace = true
+sequencer_service_rpc = { workspace = true, features = ["client"] }
+testnet_initial_state.workspace = true
+bridge_core.workspace = true
+keycard_wallet.workspace = true
+programs.workspace = true
+system_accounts.workspace = true
+sequencer_stake_core.workspace = true
+program_loader_core.workspace = true
+risc0-binfmt.workspace = true
+risc0-zkos-v1compat.workspace = true
+
+aes-gcm.workspace = true
+argon2.workspace = true
+bip39.workspace = true
+borsh.workspace = true
+rpassword = "7"
+tempfile.workspace = true
+zeroize.workspace = true
+
+anyhow.workspace = true
+thiserror.workspace = true
+serde_json.workspace = true
+env_logger.workspace = true
+log.workspace = true
+serde.workspace = true
+humantime-serde.workspace = true
+humantime.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+clap.workspace = true
+hex = { workspace = true, features = ["serde"] }
+rand.workspace = true
+itertools.workspace = true
+futures.workspace = true
+async-stream.workspace = true
+indicatif = { version = "0.18.3", features = ["improved_unicode"] }
+optfield = "0.4.0"
+url.workspace = true
+derive_more = { workspace = true, features = ["display"] }
+
+[features]
+# Enables `keycard get-private-keys` command that prints sensitive secret keys to terminal.
+# Never enable in production builds.
+keycard-debug = []
+
+[dev-dependencies]
+jsonrpsee = { workspace = true, features = ["server"] }
+lee = { workspace = true, features = ["test-utils"] }
+key_protocol = { workspace = true, features = ["test_utils"] }
+test_programs.workspace = true
+test_guest_core.workspace = true
+bincode.workspace = true

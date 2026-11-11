@@ -1,0 +1,4 @@
+# 2026-11-10T18:22:05Z dev  commit 
+# Linux 6.18.54.1-microsoft-standard-WSL2 x86_64; NVIDIA GeForce RTX 3080, 617.14, 12288 MiB; Build cuda_12.8.r12.8/compiler.35583870_0
+# rustc rustc 1.98.1 (48a229cea 2026-09-01); risc0-zkvm 3.0.5
+# sequencer $LEZ_SEQUENCER_BIN pid 1091087 port 3075 RISC0_DEV_MODE=1

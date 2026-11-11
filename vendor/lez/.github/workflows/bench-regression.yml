@@ -1,0 +1,46 @@
+on:
+  pull_request:
+    paths:
+      - "tools/crypto_primitives_bench/**"
+      - "lez/key_protocol/**"
+      - "lee/core/**"
+      - ".github/workflows/bench-regression.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+  packages: read
+
+name: bench-regression
+
+jobs:
+  ci-image:
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/ci-image.yml
+
+  crypto-primitives:
+    needs: ci-image
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.ci-image.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.head_ref }}
+          # criterion-compare-action checks out the base branch in a second
+          # working tree, so we need the full history.
+          fetch-depth: 0
+
+      - name: Run criterion-compare against base branch
+        uses: boa-dev/criterion-compare-action@v3
+        with:
+          branchName: ${{ github.base_ref }}
+          cwd: tools/crypto_primitives_bench
+          benchName: primitives
+          token: ${{ secrets.GITHUB_TOKEN }}

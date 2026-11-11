@@ -1,0 +1,63 @@
+//! Core data structures and constants for the Clock Program.
+
+use borsh::{BorshDeserialize, BorshSerialize};
+use lee_core::{Timestamp, account::AccountId};
+
+pub const CLOCK_01_PROGRAM_ACCOUNT_ID: AccountId =
+    AccountId::new(*b"/LEZ/ClockProgramAccount/0000001");
+
+pub const CLOCK_10_PROGRAM_ACCOUNT_ID: AccountId =
+    AccountId::new(*b"/LEZ/ClockProgramAccount/0000010");
+
+pub const CLOCK_50_PROGRAM_ACCOUNT_ID: AccountId =
+    AccountId::new(*b"/LEZ/ClockProgramAccount/0000050");
+
+/// All clock program account IDs, from the every-block one to the coarsest.
+pub const CLOCK_PROGRAM_ACCOUNT_IDS: [AccountId; 3] = [
+    CLOCK_01_PROGRAM_ACCOUNT_ID,
+    CLOCK_10_PROGRAM_ACCOUNT_ID,
+    CLOCK_50_PROGRAM_ACCOUNT_ID,
+];
+
+pub const CLOCK_NAME: [u8; 5] = *b"clock";
+
+/// The message type for the Clock Program. The sequencer ticks the every-block account with the
+/// current block timestamp and block ID; that account records it into the coarser ones.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+pub enum Message {
+    Tick {
+        timestamp: Timestamp,
+        block_id: u64,
+    },
+    Record(ClockAccountData),
+    /// Read-only: any clock account may answer it, asserting its own timestamp falls in
+    /// `[at_least, at_most]` (`at_least == at_most` pins an exact timestamp).
+    AssertTimestamp {
+        at_least: Timestamp,
+        at_most: Timestamp,
+    },
+}
+
+/// The data stored in a clock account.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+pub struct ClockAccountData {
+    pub block_id: u64,
+    pub timestamp: Timestamp,
+}
+
+impl ClockAccountData {
+    #[must_use]
+    pub fn to_bytes(self) -> Vec<u8> {
+        borsh::to_vec(&self).expect("ClockAccountData serialization should not fail")
+    }
+
+    #[must_use]
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        borsh::from_slice(bytes).expect("ClockAccountData deserialization should not fail")
+    }
+}
+
+#[must_use]
+pub fn clock_account_id() -> AccountId {
+    AccountId::from_builtin_program_name(&CLOCK_NAME)
+}

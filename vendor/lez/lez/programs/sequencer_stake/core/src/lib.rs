@@ -1,0 +1,618 @@
+//! Core types for the `sequencer_stake` program.
+
+use std::collections::BTreeMap;
+
+pub use ed25519_dalek;
+use lee_core::account::AccountId;
+pub use lee_core::program::PdaSeed;
+use serde::{Deserialize, Serialize};
+
+const INVALID_KEY: &str = "invalid Ed25519 public key";
+const SEQUENCER_STAKE_CONFIG_SEED_DOMAIN: [u8; 32] = *b"/LEZ/v0.3/MinSequencerStake/0000";
+/// Names the fault, so a second fault gets its own domain and its own signatures.
+const SLASH_APPROVAL_DOMAIN: [u8; 32] = *b"/LEZ/v0.3/SlashApproval/NonBlock";
+const SLASH_SINK_SEED_DOMAIN: [u8; 32] = *b"/LEZ/v0.3/SlashedStakeSink/00000";
+
+pub const SEQUENCER_STAKE_NAME: [u8; 15] = *b"sequencer_stake";
+/// Blocks before `requested_at` in which an `UnstakeRequest` may land.
+pub const UNSTAKE_REQUEST_WINDOW: u64 = 16;
+
+/// Smallest `max_block_size` genesis accepts, leaving room for the header and the fee and clock
+/// transactions.
+pub const MIN_MAX_BLOCK_SIZE: u64 = 4 * 1024;
+
+/// The channel signing public key a stake backs. Holds only a valid Ed25519
+/// public key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SequencerKey([u8; 32]);
+
+impl SequencerKey {
+    /// `None` if `bytes` is not a valid Ed25519 public key.
+    #[must_use]
+    pub fn new(bytes: [u8; 32]) -> Option<Self> {
+        ed25519_dalek::VerifyingKey::from_bytes(&bytes)
+            .is_ok()
+            .then_some(Self(bytes))
+    }
+
+    #[must_use]
+    pub const fn to_bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+impl AsRef<[u8]> for SequencerKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl Serialize for SequencerKey {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SequencerKey {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let bytes = <[u8; 32]>::deserialize(deserializer)?;
+        Self::new(bytes).ok_or_else(|| serde::de::Error::custom(INVALID_KEY))
+    }
+}
+
+impl borsh::BorshSerialize for SequencerKey {
+    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.0, writer)
+    }
+}
+
+impl borsh::BorshDeserialize for SequencerKey {
+    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
+        let bytes = <[u8; 32]>::deserialize_reader(reader)?;
+        Self::new(bytes)
+            .ok_or_else(|| borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, INVALID_KEY))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+pub enum Message {
+    /// Locks `amount` into the stake funds account of `sequencer_key`'s ownership account.
+    /// First use initializes the ownership account's actor state for this program.
+    Stake {
+        sequencer_key: SequencerKey,
+        amount: u128,
+        has_record: bool,
+        funding: AccountId,
+    },
+
+    /// Records a request to release `amount` to `destination`; no balance
+    /// moves yet. Must leave the account at zero or at/above the minimum.
+    UnstakeRequest {
+        sequencer_key: SequencerKey,
+        amount: u128,
+        destination: AccountId,
+        /// The latest block the request may land in, dating the exit delay.
+        requested_at: u64,
+    },
+
+    /// Unsigned, permissionless: releases the key's pending unstake, as the config records it,
+    /// once [`ChannelParams::exit_delay`] blocks have passed since it. The payout is sent
+    /// asynchronously to the destination.
+    FinalizeUnstake { sequencer_key: SequencerKey },
+
+    /// Burns the key's whole tracked stake, pending unstake included, to the sink and removes
+    /// its entry.
+    ///
+    /// Only `approvals` authorize this. The reason for the offence is not checked.
+    Slash {
+        sequencer_key: SequencerKey,
+        /// `MsgId` of the offending inscription, raw to avoid Bedrock types.
+        inscription: [u8; 32],
+        approvals: Vec<SlashApproval>,
+    },
+
+    /// Sets the channel params and the channel id once, at genesis. Rejected
+    /// once they are set, so nothing can move them afterwards.
+    InitChannelParams {
+        params: ChannelParams,
+        /// Bedrock `ChannelId`, raw to avoid Bedrock types.
+        channel_id: [u8; 32],
+    },
+
+    RecordStake {
+        sequencer_key: SequencerKey,
+        ownership: AccountId,
+        amount: u128,
+        has_record: bool,
+    },
+    TrackUnstakeRequest {
+        sequencer_key: SequencerKey,
+        ownership: AccountId,
+        amount: u128,
+        destination: AccountId,
+        requested_at: u64,
+    },
+}
+
+/// One accredited sequencer's signature over [`slash_approval_message`].
+#[derive(Clone, Debug, PartialEq, Eq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+pub struct SlashApproval {
+    pub signer: SequencerKey,
+    /// Ed25519 signature bytes.
+    pub signature: Vec<u8>,
+}
+
+/// The sequencer key an ownership account backs.
+#[derive(Clone, Debug, PartialEq, Eq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+pub struct StakeRecord {
+    pub sequencer_key: SequencerKey,
+}
+
+impl StakeRecord {
+    #[must_use]
+    pub fn to_bytes(&self) -> Vec<u8> {
+        borsh::to_vec(self).expect("StakeRecord serialization should not fail")
+    }
+
+    /// Returns `None` on malformed input.
+    #[must_use]
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        borsh::from_slice(bytes).ok()
+    }
+}
+
+/// Fixed under the staker's signature at `UnstakeRequest` time — `FinalizeUnstake` needs no
+/// signature of its own.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+pub struct PendingUnstake {
+    pub amount: u128,
+    pub destination: AccountId,
+    /// The latest block the request could land in.
+    pub requested_at: u64,
+}
+
+impl PendingUnstake {
+    /// The first block `FinalizeUnstake` may land in.
+    #[must_use]
+    pub const fn releasable_at(&self, exit_delay: u64) -> u64 {
+        self.requested_at.saturating_add(exit_delay)
+    }
+}
+
+/// The values genesis fixes for the chain's life.
+///
+/// The program refuses a second write, so once set these never move.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    borsh::BorshSerialize,
+    borsh::BorshDeserialize,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+pub struct ChannelParams {
+    /// Minimum summed stake for a key to be a committee candidate.
+    pub minimum_sequencer_stake: u128,
+    /// How long one sequencer's posting turn lasts, in slots.
+    pub posting_timeframe: u32,
+    /// Idle slots after which a turn nobody posted in passes on. Must stay
+    /// above `block_create_timeout`, or a healthy sequencer loses its turn
+    /// between its own blocks.
+    pub posting_timeout: u32,
+    /// Blocks an unstake waits before `FinalizeUnstake` may release it.
+    pub exit_delay: u64,
+    /// Largest block a sequencer builds, in borsh-encoded bytes.
+    pub max_block_size: u64,
+}
+
+/// Minimum stake and per-key standing, stored in this program's config actor state.
+#[derive(Clone, Debug, PartialEq, Eq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+pub struct SequencerStakeConfig {
+    /// `None` until genesis runs [`Message::InitChannelParams`], which is
+    /// the only state that message accepts.
+    pub channel_params: Option<ChannelParams>,
+    /// The Bedrock channel this chain writes to, set by the same message;
+    /// scopes a slash approval to this zone.
+    pub channel_id: Option<[u8; 32]>,
+    pub entries: BTreeMap<SequencerKey, SequencerEntry>,
+}
+
+impl SequencerStakeConfig {
+    #[must_use]
+    pub fn to_bytes(&self) -> Vec<u8> {
+        borsh::to_vec(self).expect("SequencerStakeConfig serialization should not fail")
+    }
+
+    /// Returns `None` on malformed input.
+    #[must_use]
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        borsh::from_slice(bytes).ok()
+    }
+
+    /// Whether `key` still backs enough stake to stand for the committee, at the
+    /// same bar `committee_discovery` uses. No params yet means no committee.
+    #[must_use]
+    pub fn is_accredited_committee_member(&self, key: &SequencerKey) -> bool {
+        let Some(params) = self.channel_params else {
+            return false;
+        };
+
+        self.entries
+            .get(key)
+            .is_some_and(|entry| entry.is_accredited(params.minimum_sequencer_stake))
+    }
+
+    /// The keys [`Self::is_accredited_committee_member`] accepts, in key order.
+    pub fn accredited_committee_members(&self) -> impl Iterator<Item = &SequencerKey> {
+        let minimum = self
+            .channel_params
+            .map(|params| params.minimum_sequencer_stake);
+        self.entries
+            .iter()
+            .filter(move |(_, entry)| minimum.is_some_and(|bar| entry.is_accredited(bar)))
+            .map(|(key, _)| key)
+    }
+
+    /// How many keys [`Self::is_accredited_committee_member`] accepts.
+    #[must_use]
+    pub fn accredited_committee_members_count(&self) -> usize {
+        self.accredited_committee_members().count()
+    }
+}
+
+/// One key's standing. `account_id` makes the ownership account findable — a plain account's id
+/// can't be recomputed from the key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+pub struct SequencerEntry {
+    pub account_id: AccountId,
+    pub total_staked: u128,
+    pub pending_unstake: Option<PendingUnstake>,
+}
+
+impl SequencerEntry {
+    /// Stake still backing this key once every pending release has been
+    /// finalized. Candidacy and every release check measure this, never the
+    /// stake funds account's balance: credits are free, so anyone can push
+    /// that balance above `total_staked`.
+    #[must_use]
+    pub const fn net_stake(&self) -> u128 {
+        let pending = match self.pending_unstake {
+            Some(pending) => pending.amount,
+            None => 0,
+        };
+        self.total_staked.saturating_sub(pending)
+    }
+
+    /// Whether this entry still backs enough stake to stand for the committee.
+    #[must_use]
+    pub const fn is_accredited(&self, minimum_stake: u128) -> bool {
+        self.net_stake() >= minimum_stake
+    }
+
+    /// Whether releasing `amount` is a legal `UnstakeRequest` against this
+    /// entry: covered by the stake tracked here, and leaving the key either
+    /// fully exited or still at or above `minimum`.
+    #[must_use]
+    pub const fn allows_unstake_request(&self, amount: u128, minimum: u128) -> bool {
+        match self.net_stake().checked_sub(amount) {
+            None => false,
+            Some(remaining) => remaining == 0 || remaining >= minimum,
+        }
+    }
+}
+
+#[must_use]
+pub fn sequencer_stake_account_id() -> AccountId {
+    AccountId::from_builtin_program_name(&SEQUENCER_STAKE_NAME)
+}
+
+/// Approvals a `Slash` must carry: two thirds of the committee, never fewer
+/// than two.
+///
+/// A `Slash` carries no proof the offence happened, so the signatures are the
+/// only thing standing between a key and a peer's stake. One is never enough.
+/// Below three sequencers that puts the threshold above the keys that would
+/// ever sign, which leaves slashing inert rather than unilateral.
+#[must_use]
+pub fn slash_approval_threshold(committee_size: usize) -> usize {
+    committee_size.saturating_mul(2).div_ceil(3).max(2)
+}
+
+/// Bytes an approver signs. The channel id keeps the approval to one zone and
+/// the inscription keeps it single use.
+#[must_use]
+pub fn slash_approval_message(
+    channel_id: [u8; 32],
+    sequencer_key: SequencerKey,
+    inscription: [u8; 32],
+) -> Vec<u8> {
+    let mut message = Vec::with_capacity(128);
+    message.extend_from_slice(&SLASH_APPROVAL_DOMAIN);
+    message.extend_from_slice(&channel_id);
+    message.extend_from_slice(&sequencer_key.to_bytes());
+    message.extend_from_slice(&inscription);
+    message
+}
+
+/// Seed of the PDA burned stakes move into. Nothing moves balance out of it.
+#[must_use]
+pub const fn slash_sink_seed() -> PdaSeed {
+    PdaSeed::new(SLASH_SINK_SEED_DOMAIN)
+}
+
+#[must_use]
+pub fn slash_sink_account_id(program_id: AccountId) -> AccountId {
+    AccountId::for_public_pda(&program_id, &slash_sink_seed())
+}
+
+/// Seed of the PDA holding the [`SequencerStakeConfig`].
+#[must_use]
+pub const fn sequencer_stake_config_seed() -> PdaSeed {
+    PdaSeed::new(SEQUENCER_STAKE_CONFIG_SEED_DOMAIN)
+}
+
+#[must_use]
+pub fn sequencer_stake_config_account_id(program_id: AccountId) -> AccountId {
+    AccountId::for_public_pda(&program_id, &sequencer_stake_config_seed())
+}
+
+#[must_use]
+pub const fn stake_funds_seed(ownership_id: &AccountId) -> PdaSeed {
+    PdaSeed::new(ownership_id.to_bytes())
+}
+
+#[must_use]
+pub fn stake_funds_account_id(program_id: AccountId, ownership_id: &AccountId) -> AccountId {
+    AccountId::for_public_pda(&program_id, &stake_funds_seed(ownership_id))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PROGRAM_ID: AccountId = AccountId::new([9; 32]);
+
+    fn test_destination() -> AccountId {
+        AccountId::new([3; 32])
+    }
+
+    /// A distinct valid key per `seed`.
+    fn test_key(seed: u8) -> SequencerKey {
+        let bytes = ed25519_dalek::SigningKey::from_bytes(&[seed; 32])
+            .verifying_key()
+            .to_bytes();
+        SequencerKey::new(bytes).expect("a derived public key is a curve point")
+    }
+
+    #[test]
+    fn a_non_curve_point_is_not_a_sequencer_key() {
+        let off_curve = [2_u8; 32];
+        assert!(SequencerKey::new(off_curve).is_none());
+
+        // A `StakeRecord` is the 32 key bytes alone.
+        assert_eq!(StakeRecord::from_bytes(&off_curve), None);
+    }
+
+    #[test]
+    fn stake_record_roundtrip() {
+        let record = StakeRecord {
+            sequencer_key: test_key(7),
+        };
+        let bytes = record.to_bytes();
+        assert_eq!(StakeRecord::from_bytes(&bytes), Some(record));
+    }
+
+    fn test_config() -> SequencerStakeConfig {
+        let mut entries = BTreeMap::new();
+        entries.insert(
+            test_key(1),
+            SequencerEntry {
+                account_id: test_destination(),
+                total_staked: 1_000_000,
+                pending_unstake: None,
+            },
+        );
+        SequencerStakeConfig {
+            channel_params: Some(ChannelParams {
+                minimum_sequencer_stake: 1_000_000,
+                posting_timeframe: 300,
+                posting_timeout: 25,
+                exit_delay: 10,
+                max_block_size: 1 << 20,
+            }),
+            channel_id: Some([0xC1; 32]),
+            entries,
+        }
+    }
+
+    #[test]
+    fn sequencer_stake_config_does_not_decode_as_stake_record() {
+        let bytes = test_config().to_bytes();
+        assert_eq!(StakeRecord::from_bytes(&bytes), None);
+    }
+
+    #[test]
+    fn stake_record_does_not_decode_as_sequencer_stake_config() {
+        // Secondary to the config account's id check, which is what actually
+        // keeps an ownership account from being passed as the config.
+        let bytes = StakeRecord {
+            sequencer_key: test_key(0),
+        }
+        .to_bytes();
+        assert_eq!(SequencerStakeConfig::from_bytes(&bytes), None);
+    }
+
+    #[test]
+    fn sequencer_stake_config_roundtrip() {
+        let config = test_config();
+        let bytes = config.to_bytes();
+        assert_eq!(SequencerStakeConfig::from_bytes(&bytes), Some(config));
+    }
+
+    fn entry(total_staked: u128, pending: u128) -> SequencerEntry {
+        SequencerEntry {
+            account_id: test_destination(),
+            total_staked,
+            pending_unstake: (pending > 0).then_some(PendingUnstake {
+                amount: pending,
+                destination: test_destination(),
+                requested_at: 0,
+            }),
+        }
+    }
+
+    #[test]
+    fn net_stake_discounts_what_is_already_pending() {
+        assert_eq!(entry(1_000, 0).net_stake(), 1_000);
+        assert_eq!(entry(1_000, 400).net_stake(), 600);
+        assert_eq!(entry(1_000, 1_000).net_stake(), 0);
+    }
+
+    #[test]
+    fn unstake_request_may_fully_exit_or_stay_at_the_minimum() {
+        let minimum = 1_000;
+        let entry = entry(3_000, 0);
+
+        assert!(entry.allows_unstake_request(3_000, minimum), "full exit");
+        assert!(
+            entry.allows_unstake_request(2_000, minimum),
+            "leaves exactly the minimum"
+        );
+        assert!(
+            entry.allows_unstake_request(0, minimum),
+            "no-op leaves everything"
+        );
+    }
+
+    #[test]
+    fn unstake_request_may_not_leave_a_nonzero_balance_below_the_minimum() {
+        let minimum = 1_000;
+        assert!(!entry(3_000, 0).allows_unstake_request(2_500, minimum));
+    }
+
+    #[test]
+    fn unstake_request_may_not_exceed_the_tracked_stake() {
+        // A donation can push the account's balance above `total_staked`; a
+        // request sized off that balance is rejected here.
+        let minimum = 1_000;
+        let donated_balance = 3_001;
+        let entry = entry(3_000, 0);
+
+        assert!(!entry.allows_unstake_request(donated_balance, minimum));
+        assert!(entry.allows_unstake_request(entry.total_staked, minimum));
+    }
+
+    #[test]
+    fn unstake_request_is_measured_against_stake_not_already_pending() {
+        let minimum = 1_000;
+        let entry = entry(3_000, 2_000);
+
+        assert!(
+            !entry.allows_unstake_request(3_000, minimum),
+            "2000 is already spoken for"
+        );
+        assert!(
+            entry.allows_unstake_request(1_000, minimum),
+            "exits what is left"
+        );
+    }
+
+    #[test]
+    fn sequencer_stake_config_account_id_is_deterministic() {
+        assert_eq!(
+            sequencer_stake_config_account_id(PROGRAM_ID),
+            sequencer_stake_config_account_id(PROGRAM_ID)
+        );
+    }
+    #[test]
+    fn no_single_key_can_ever_reach_the_threshold() {
+        let expected = [
+            (0, 2),
+            (1, 2),
+            (2, 2),
+            (3, 2),
+            (4, 3),
+            (5, 4),
+            (6, 4),
+            (7, 5),
+            (9, 6),
+        ];
+        for (committee_size, threshold) in expected {
+            assert_eq!(
+                slash_approval_threshold(committee_size),
+                threshold,
+                "committee of {committee_size}"
+            );
+            // The whole security property: a Slash carries no proof of the
+            // offence, so one key must never be able to burn a peer's stake.
+            assert!(
+                threshold >= 2,
+                "a committee of {committee_size} lets one key slash alone"
+            );
+        }
+    }
+
+    #[test]
+    fn slashing_is_inert_below_three_sequencers() {
+        // The offender is a committee member and never approves its own slash,
+        // so a threshold above the rest of the committee can never be met.
+        for committee_size in 0..=2_usize {
+            let could_sign = committee_size.saturating_sub(1);
+            assert!(
+                slash_approval_threshold(committee_size) > could_sign,
+                "a committee of {committee_size} can still be slashed"
+            );
+        }
+    }
+
+    #[test]
+    fn every_honest_key_suffices_from_three_sequencers_up() {
+        // Liveness: the non-offenders can always clear the bar on their own.
+        for committee_size in 3..=32_usize {
+            assert!(
+                slash_approval_threshold(committee_size) < committee_size,
+                "a committee of {committee_size} could never slash anyone"
+            );
+        }
+    }
+    #[test]
+    fn a_key_on_its_way_out_is_neither_an_approver_nor_a_head_to_count() {
+        let staying = SequencerKey::new(
+            ed25519_dalek::SigningKey::from_bytes(&[1; 32])
+                .verifying_key()
+                .to_bytes(),
+        )
+        .expect("valid key");
+        let leaving = SequencerKey::new(
+            ed25519_dalek::SigningKey::from_bytes(&[2; 32])
+                .verifying_key()
+                .to_bytes(),
+        )
+        .expect("valid key");
+        let config = SequencerStakeConfig {
+            channel_params: Some(ChannelParams {
+                minimum_sequencer_stake: 1_000,
+                posting_timeframe: 300,
+                posting_timeout: 25,
+                exit_delay: 10,
+                max_block_size: 1 << 20,
+            }),
+            channel_id: Some([0xC1; 32]),
+            entries: BTreeMap::from([(staying, entry(1_000, 0)), (leaving, entry(1_000, 1_000))]),
+        };
+
+        assert!(config.is_accredited_committee_member(&staying));
+        assert!(
+            !config.is_accredited_committee_member(&leaving),
+            "a fully pending unstake leaves nothing backing the key"
+        );
+        assert_eq!(
+            config.accredited_committee_members_count(),
+            1,
+            "an exiting key must not raise the threshold its peers have to clear"
+        );
+    }
+}

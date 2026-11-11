@@ -1,0 +1,4 @@
+# 2026-11-10T23:26:10Z real  commit 2d3e6c32e04a5627688103e846ed784d2bde8385
+# Linux 6.18.54.1-microsoft-standard-WSL2 x86_64; NVIDIA GeForce RTX 3080, 617.14, 12288 MiB; Build cuda_12.8.r12.8/compiler.35583870_0
+# rustc rustc 1.98.1 (48a229cea 2026-09-01); risc0-zkvm 3.0.5
+# sequencer $LEZ_SEQUENCER_BIN pid 31748 port 3075 RISC0_DEV_MODE=unset

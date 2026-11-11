@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Private multisig mini-app: design mock (RFP-005 U.2, U.5, U.6, S.11)</title>
+<style>
+:root{--bg:#f6f7f9;--p:#fff;--b:#c9d0da;--t:#16202c;--m:#4a5666;--pub:#8a3d00;--pubbg:#ffe9d6;--prv:#0b5d2a;--prvbg:#d8f3e2;--acc:#1a4fb4;--warn:#8a1c1c;--warnbg:#fde4e4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:15px/1.5 system-ui,sans-serif}
+.mock{background:#16202c;color:#fff;padding:10px 20px;font-weight:600}
+header{padding:12px 20px;border-bottom:1px solid var(--b);background:var(--p)}h1{font-size:18px;margin:0}header p{margin:2px 0 0;color:var(--m);font-size:13px}
+main{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 20px;max-width:1280px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--p);border:1px solid var(--b);border-radius:8px;padding:14px}
+section.wide{grid-column:1/-1}
+h2{font-size:15px;margin:0 0 10px}
+ul.list{list-style:none;margin:0;padding:0}
+ul.list li{border:1px solid var(--b);border-radius:6px;padding:8px 10px;margin-bottom:8px}
+ul.list li[aria-current=true]{border:2px solid var(--acc)}
+.row{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:700;border:1px solid currentColor}
+.pend{color:var(--acc)}.ready{color:var(--prv)}.dead{color:var(--m)}
+.muted{color:var(--m);font-size:13px}
+.room{border:1px solid var(--b);border-radius:6px;padding:8px;background:#fafbfc;max-height:280px;overflow:auto}
+.msg{margin:0 0 8px}.msg b{font-size:13px}.msg code{display:block;overflow-wrap:anywhere;font-size:12px;color:var(--m)}
+.sys{color:var(--m);font-style:italic;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:6px;border-bottom:1px solid var(--b);vertical-align:top}th{font-weight:600;color:var(--m)}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:700}
+.PUBLIC{background:var(--pubbg);color:var(--pub)}.PRIVATE{background:var(--prvbg);color:var(--prv)}
+.dec{font-family:ui-monospace,Menlo,monospace;font-size:13px;border:1px solid var(--b);border-radius:6px;padding:10px;background:#fafbfc}
+.dec div{display:flex;gap:10px;padding:2px 0}.dec span:first-child{min-width:150px;color:var(--m)}
+.banner{border:1px solid var(--warn);background:var(--warnbg);color:var(--warn);border-radius:6px;padding:8px 10px;margin:10px 0;font-size:14px}
+button{font:inherit;padding:8px 14px;border-radius:6px;border:1px solid var(--acc);background:var(--acc);color:#fff;font-weight:600;cursor:not-allowed;opacity:.9}
+button.sec{background:#fff;color:var(--acc)}
+.bar{height:14px;background:#e3e8ef;border-radius:7px;overflow:hidden}.bar i{display:block;height:100%;width:55%;background:var(--acc)}
+ol.stages{display:flex;gap:6px;flex-wrap:wrap;list-style:none;padding:0;margin:10px 0}
+ol.stages li{border:1px solid var(--b);border-radius:6px;padding:4px 10px;font-size:13px}
+ol.stages li.done{background:var(--prvbg);color:var(--prv)}ol.stages li.now{border:2px solid var(--acc);font-weight:700}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+</style></head><body>
+<div class="mock" role="note">Design mock, not a working app. All values are invented examples. Nothing here is connected to a sequencer, a wallet or a chat module.</div>
+<header><h1>Treasury multisig (private posture)</h1>
+<p>Screen for RFP-005 U.2 (proposal list with coordination room), U.5 (privacy split), U.6 (decode from signed bytes), S.11. Implementation status: PLANNED (B4). Backing facts: <code>docs/PRIVACY.md</code>, <code>docs/ADVERSARY.md</code>.</p></header>
+<main>
+
+<section aria-labelledby="h-list">
+<h2 id="h-list">Proposals</h2>
+<p class="muted">Config epoch 3 &middot; nonce 12 &middot; threshold 2 of 3 &middot; read from chain state, not from the room</p>
+<ul class="list">
+<li aria-current="true"><div class="row"><strong>#12 Pay 300 to account 9fK2&hellip;</strong><span class="pill pend">1 of 2 approvals</span></div>
+<div class="muted">Proposed by member 0 &middot; expires in 58 min (rounded to the hour grid) &middot; approvals collected in the room</div></li>
+<li><div class="row"><strong>#12 Remove member 2 (competing, same nonce)</strong><span class="pill pend">0 of 2</span></div>
+<div class="muted">Only one proposal per nonce can execute. The chain decides.</div></li>
+<li><div class="row"><strong>#11 Pay 100 to account 4Qxe&hellip;</strong><span class="pill ready">Executed, block 83</span></div>
+<div class="muted">Confirmed on chain</div></li>
+<li><div class="row"><strong>#10 Set threshold 3</strong><span class="pill dead">Likely dead (advisory): 2 rejects</span></div>
+<div class="muted">Reject is a room label only; a member can still approve.</div></li>
+</ul>
+</section>
+
+<section aria-labelledby="h-room">
+<h2 id="h-room">Coordination room (E2EE, chat module)</h2>
+<p class="muted">Members shown from chain state. Senders that are unbound or removed are flagged. A sent message is "sent, unconfirmed" until seen; the chat module gives no delivery ack.</p>
+<div class="room" role="log" aria-label="Room messages">
+<p class="msg"><b>member 0</b> <span class="muted">10:02</span><br>Paying the audit invoice, details in the proposal.<code>msig1:propose:&hellip;</code></p>
+<p class="msg"><b>member 1</b> <span class="muted">10:09</span><br>Checked the amount against the invoice. Approving.<code>msig1:approve:&hellip; (signature checked against chain members: valid)</code></p>
+<p class="msg sys">Message from unbound sender 8c1d&hellip;: not a member on chain, ignored. <span class="pill dead">flagged</span></p>
+</div>
+<p class="muted">Provisioning: creator opens a room with an opaque name, verifies each member's <code>Bind</code> (signed by the member's LEZ key, bound to this vault id), invites. After a member is removed a new room is created for the new epoch.</p>
+</section>
+
+<section class="wide" aria-labelledby="h-sign">
+<h2 id="h-sign">Sign approval for #12: decoded from the exact signed bytes</h2>
+<div class="dec" role="group" aria-label="Decoded action">
+<div><span>Vault</span><span>GvpV6Q&hellip;jmyJ8</span></div>
+<div><span>Target program</span><span>native-token (registered, image id matches registry)</span></div>
+<div><span>Instruction</span><span>Transfer</span></div>
+<div><span>Recipient</span><span>9fK2&hellip;4Qxe (public account)</span></div>
+<div><span>Amount</span><span>300</span></div>
+<div><span>With authority</span><span>yes, to the vault account only</span></div>
+<div><span>Expiry / nonce / epoch</span><span>in 23 h / 12 / 3</span></div>
+<div><span>Digest to sign</span><span>b3f1&hellip;07c2 (recomputed here from these bytes)</span></div>
+</div>
+<div class="banner" role="alert">Authority warning: a target called with authority can move the vault's native balance inside that call. For an unregistered target this panel shows raw hex, its length, the program id and "cannot decode", and signing needs an explicit override.</div>
+<p class="muted">The description in the room message is never used. If it differs from the decoded bytes, the decoded bytes win.</p>
+<button type="button" aria-disabled="true">Sign approval</button> <button type="button" class="sec" aria-disabled="true">Reject (advisory)</button>
+</section>
+
+<section aria-labelledby="h-split">
+<h2 id="h-split">Who sees what for this action</h2>
+<table><caption class="muted" style="text-align:left">Private posture, Execute of a native transfer</caption>
+<thead><tr><th>Item</th><th>Observer of the chain</th><th>Room members</th></tr></thead>
+<tbody>
+<tr><td>Vault exists, member set, threshold, roles</td><td><span class="tag PRIVATE">PRIVATE</span></td><td>visible</td></tr>
+<tr><td>Who approved</td><td><span class="tag PRIVATE">PRIVATE</span></td><td>visible (signatures)</td></tr>
+<tr><td>Pending proposal and its approvals</td><td><span class="tag PRIVATE">PRIVATE</span> off chain</td><td>visible</td></tr>
+<tr><td>Vault balance</td><td><span class="tag PRIVATE">PRIVATE</span></td><td>visible with the viewing key</td></tr>
+<tr><td>That a private transaction occurred, its fee, its size</td><td><span class="tag PUBLIC">PUBLIC</span></td><td>visible</td></tr>
+<tr><td>Expiry of the execution</td><td><span class="tag PUBLIC">PUBLIC</span></td><td>visible</td></tr>
+<tr><td>Recipient and amount of the payout</td><td><span class="tag PUBLIC">PUBLIC</span> (public recipient)</td><td>visible</td></tr>
+<tr><td>Timing of room traffic vs the transaction</td><td colspan="2">correlation left observable; see <code>docs/PRIVACY.md</code> section 3</td></tr>
+</tbody></table>
+<p class="muted">Known limit: any holder of the group secret, including a removed member, can make an honest execution fail and be re-proven (liveness veto). It cannot move funds.</p>
+</section>
+
+<section aria-labelledby="h-prove">
+<h2 id="h-prove">Executing #12: proving in progress</h2>
+<ol class="stages" aria-label="Stages">
+<li class="done">simulate (done, 0:01)</li><li class="now" aria-current="step">prove (running)</li><li>submit</li><li>included</li>
+</ol>
+<div class="bar" role="progressbar" aria-label="Proving" aria-valuemin="0" aria-valuemax="100" aria-valuenow="55"><i></i></div>
+<p>Stage: <strong>prove</strong> &middot; elapsed <strong>04:12</strong> &middot; the figure is a placeholder; real proving time is in <code>docs/BENCHMARKS.md</code></p>
+<p class="muted">Proving takes minutes. The approval package is saved, so closing the app resumes at this stage. Failure shows the reason, for example "an honest execution lost to another transaction on the vault (spent nullifier): re-prove".</p>
+<button type="button" class="sec" aria-disabled="true">Cancel and keep package</button>
+</section>
+
+</main></body></html>

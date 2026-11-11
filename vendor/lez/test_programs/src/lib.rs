@@ -1,0 +1,65 @@
+#![expect(
+    clippy::no_effect_underscore_binding,
+    reason = "This way we can remove warnings about unused path constants"
+)]
+
+use std::borrow::Cow;
+
+use lee::program::Program;
+
+mod guests {
+    include!(concat!(env!("OUT_DIR"), "/methods.rs"));
+}
+
+#[must_use]
+#[inline]
+pub const fn scripted() -> Program {
+    use guests::{SCRIPTED_ELF, SCRIPTED_ID, SCRIPTED_PATH};
+
+    let _unused = SCRIPTED_PATH;
+
+    Program::new_unchecked(SCRIPTED_ID, Cow::Borrowed(SCRIPTED_ELF))
+}
+
+#[must_use]
+#[inline]
+pub const fn time_locked_transfer() -> Program {
+    use guests::{TIME_LOCKED_TRANSFER_ELF, TIME_LOCKED_TRANSFER_ID, TIME_LOCKED_TRANSFER_PATH};
+
+    let _unused = TIME_LOCKED_TRANSFER_PATH;
+
+    Program::new_unchecked(
+        TIME_LOCKED_TRANSFER_ID,
+        Cow::Borrowed(TIME_LOCKED_TRANSFER_ELF),
+    )
+}
+
+#[must_use]
+#[inline]
+pub const fn cooldown() -> Program {
+    use guests::{COOLDOWN_ELF, COOLDOWN_ID, COOLDOWN_PATH};
+
+    let _unused = COOLDOWN_PATH;
+
+    Program::new_unchecked(COOLDOWN_ID, Cow::Borrowed(COOLDOWN_ELF))
+}
+
+#[must_use]
+#[inline]
+pub const fn listener() -> Program {
+    use guests::{LISTENER_ELF, LISTENER_ID, LISTENER_PATH};
+
+    let _unused = LISTENER_PATH;
+
+    Program::new_unchecked(LISTENER_ID, Cow::Borrowed(LISTENER_ELF))
+}
+
+#[must_use]
+#[inline]
+pub const fn live_payout() -> Program {
+    use guests::{LIVE_PAYOUT_ELF, LIVE_PAYOUT_ID, LIVE_PAYOUT_PATH};
+
+    let _unused = LIVE_PAYOUT_PATH;
+
+    Program::new_unchecked(LIVE_PAYOUT_ID, Cow::Borrowed(LIVE_PAYOUT_ELF))
+}

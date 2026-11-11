@@ -1,0 +1,54 @@
+# scripts/e2e-private.sh  2026-11-11T18:06:49Z  image msig e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557
+# LEZ v0.4.0-rc1 1806e87 sequencer $LEZ_SEQUENCER_BIN on 127.0.0.1:3071, RISC0_DEV_MODE=1 (proofs are dev-mode receipts)
+[0] sequencer head 1; payer 3meDai2yovDSU3xHcmcTXgeKgFYuCD5nG5W2BHjyQH8a balance 10000000000000
+[1] deploy multisig image e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 at P = 2yigtJM3BuZ5TPsVKtB7DU1VewL7rn7R6Sz8DsrVBf7a
+    (builtin address would be GB5tfpJxu6orKN7XN5L7iAVkUpANn1e3a6R8PmQ382ez; not used)
+Transaction hash is d9925bbf090b866ccd58afe2e7babc7b54beb7901cfa476cca0d54c8184f3f67
+Transaction is included in block 2
+Transaction hash is ae94796db265066334e5c7ce840dee4db1f7b8496708177f814534905339330e
+Transaction is included in block 12
+Transaction hash is bf3a567e43ecd391d018c40f9a1b5ae011fda3f07916007d481981eae0045482
+Transaction is included in block 22
+Transaction hash is 4d6620b03deadc266d628eb82ff62202a19b0966cf911fff380c2a12b17645fd
+Transaction is included in block 32
+Transaction hash is 6f509d541a2f9bb7f61f313d50eba7fad36aaf702930aaf495a0e8b915d0b0b7
+Transaction is included in block 42
+    deployed: 4 segment(s)
+      shield fee funds to the submitter's private account: tx e9a063a05f8e8920bb53581b606cd664f63c05bb9390b972859d9cc1a896f5a7 included in block 52, 78129 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+      open recipient public account (1 unit): tx 459af6c1f9fdc9d5496103cf65e8047b740e8df0218f554013a0f86924299acb included in block 62, 544 bytes (borsh)
+[2] 3 dev members, threshold M=2; private PDA V = AKV2bK8voHj27fhFYte5CmSfbryxfs5qZtyh1dYdJL26 (seed commits to cfg, chain_tag, salt)
+  [3] Create: simulated + proven + submitted in 0.8 s
+  [3] Create: tx 73c9a2f391126bc4f49eb8b37d635ab80d3010f15276e6f055e920a298c02edd included in block 73, 88193 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+    V state: threshold 2 of 3 members, epoch 0, nonce 0; balance 0
+  [4] fund V: tx 7be9bfbe2da1ea5e72819a0fcea938af059b29a5bc5c89c96ae23e150e699312 included in block 83, 89033 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+    V balance (decrypted by a GMS holder): 1000
+[5] Execute with 1 of M=2 approvals REJECTED: guest exit code 6 (BelowThreshold); no tx submitted
+    error: TransactionBuildError(ProgramExitedWithCode { code: 6, cycles: 24989 })
+    after rejection: V balance 1000, recipient BEyuxrA79GVrHyGSFQHC8Rf4h8Gd7eaJKuSYph1hX1im balance 1 (unchanged)
+  [6] Execute with 2 of 3 approvals: simulated + proven + submitted in 0.9 s
+  [6] Execute with 2 of 3 approvals: tx be7b347143e4fb0847905be2a2250dbe78e91f2dbd8c4aec864151223e52dbb3 included in block 93, 88657 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+    V balance 700, nonce 1; recipient balance 301
+[7] replay of the same approvals at nonce 1 REJECTED, guest exit code 10 (BadSignature)
+  [8] Config RemoveMember(member 2) with 2 of 3 approvals: simulated + proven + submitted in 1.0 s
+  [8] Config RemoveMember(member 2) with 2 of 3 approvals: tx b76c2498806ec2a2f6d9a0f749b9d0e4593640fca4e7409f82f7ba7b43cf7597 included in block 104, 88209 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+    V state: threshold 2 of 2 members, epoch 1, nonce 2; balance 700
+[9] stale approvals (epoch 0, incl. removed member 2) for nonce 2: REJECTED, guest exit code 10 (BadSignature); no tx submitted
+[10] removed member 2 approves afresh at epoch 1: REJECTED, guest exit code 8 (NotMember); no tx submitted
+  [11] Execute with remaining members 0 and 1 at epoch 1: simulated + proven + submitted in 0.9 s
+  [11] Execute with remaining members 0 and 1 at epoch 1: tx 37677bfe9e13c67fade397fbd64d731619a4dcc6a4fe262294265f1c6fd21fbd included in block 115, 88657 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+    V balance 400; recipient balance 601
+  [12] Config SetLimit(150 per day, 1 SPEND signature): simulated + proven + submitted in 0.9 s
+  [12] Config SetLimit(150 per day, 1 SPEND signature): tx 0a215c9f2d1960ff9d42bc37e9d552983ee22a2ecd7586f452e24915746255e5 included in block 125, 88209 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+  [13] Spend 100 (member 1 alone, limit 150/day): simulated + proven + submitted in 1.0 s
+  [13] Spend 100 (member 1 alone, limit 150/day): tx d6690fb0ac154ae76337dff7954b19bffa98b2d6c30abefbf26e5c6b7da8c791 included in block 136, 88673 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+    V balance 300; recipient balance 701; spent 100 in period 20768, action nonce 4 (unchanged)
+[14] second Spend 100 in the same period (200 > 150): REJECTED, guest exit code 20 (OverLimit); no tx submitted
+  [15] Config SetTimeLock(5 s): simulated + proven + submitted in 1.0 s
+  [15] Config SetTimeLock(5 s): tx 90cde4adf88d7a2b1c759c4429d43b735552a13de14751b520b1ced9dfe874e5 included in block 146, 88209 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+  [16] Queue payout 100 (t = now + 30 s, eta = t + 5 s): simulated + proven + submitted in 1.1 s
+  [16] Queue payout 100 (t = now + 30 s, eta = t + 5 s): tx dbcee57e1f35c130d6265aead4bb3d4ab377ca4422ca330943b5cca685bf46d5 included in block 157, 88209 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+    queued; waiting 4.6 s for eta
+  [17] ExecuteQueued after eta: simulated + proven + submitted in 1.0 s
+  [17] ExecuteQueued after eta: tx 5ad7e71f09a35c529f4181bf4c75eb9658f78d04809454aba8c9dd81754e990a included in block 169, 88673 bytes (borsh), private notes [4096, 4096, 4096, 4096, 4096, 4096, 4096] B (== NOTE_PAD), refund_to None, program claim Undisclosed, no P/image id
+    V balance 200; recipient balance 801; nonce 6, queue slot empty
+PASS

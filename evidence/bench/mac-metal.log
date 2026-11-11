@@ -1,0 +1,37 @@
+# 2026-11-11T01:37:57Z variant=metal commit 9eed64de656c7f3dbf840c12105ba0c36ae0ae39
+# machine: Apple M2 Max, Mac14,5, 32 GB, macOS 27.2
+# rustc rustc 1.98.1 (48a229cea 2026-09-01); features e2e,metal; risc0-zkvm 3.0.5
+[init] RESULT op=init deployed_at=2yigtJM3BuZ5TPsVKtB7DU1VewL7rn7R6Sz8DsrVBf7a image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 fee_shield_block=161 dev_mode=false
+SUMMARY variant=metal tag=init max_rss_mib=8025 block=161 
+[create-m5] RESULT op=create label=c5 m=5 n=7 sync_s=0.10 dry_run_s=0.04 send_tx_s=631.86 prove_est_s=631.82 incl_s=30.01 e2e_client_s=661.97 tx_bytes=311206 proof_bytes=267166 block=392 tx=ffa0acb257c6218e1680bb2c3aa84ae4bf3e5771c917975a81352f5d2a704282 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+SUMMARY variant=metal tag=create-m5 max_rss_mib=8193 send_tx_s=631.86 prove_est_s=631.82 e2e_client_s=661.97 tx_bytes=311206 proof_bytes=267166 block=392 
+[fund-m5] RESULT op=fund label=c5 m=5 n=7 amount=100000 sync_s=0.01 dry_run_s=0.00 send_tx_s=569.65 prove_est_s=569.64 incl_s=30.01 e2e_client_s=599.67 tx_bytes=312046 proof_bytes=267514 block=592 tx=f6a492a5c9ed36dc4be101ae559943c1e79a8c564f2629f911284054d580ea04 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+SUMMARY variant=metal tag=fund-m5 max_rss_mib=7620 send_tx_s=569.65 prove_est_s=569.64 e2e_client_s=599.67 tx_bytes=312046 proof_bytes=267514 block=592 
+[exec-m5-warmup] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.08 send_tx_s=764.42 prove_est_s=764.33 incl_s=30.01 e2e_client_s=794.43 tx_bytes=311670 proof_bytes=267398 block=858 tx=12372e3a26e0890552adc22cae54ac3ca4af8d64d2e34c111d7fb93b4243aedf image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-m5-warmup] CHECK vault_balance 100000->99999 recipient_balance 1->2 nonce 0->1
+SUMMARY variant=metal tag=exec-m5-warmup max_rss_mib=7912 send_tx_s=764.42 prove_est_s=764.33 e2e_client_s=794.43 tx_bytes=311670 proof_bytes=267398 block=858 
+[exec-m5-run1] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.08 send_tx_s=764.19 prove_est_s=764.11 incl_s=30.01 e2e_client_s=794.20 tx_bytes=311670 proof_bytes=267398 block=1124 tx=f415fb4e7784fc7f655b5fbd7dd42e8a97f37e498f35a47f4bc0826859f44c22 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-m5-run1] CHECK vault_balance 99999->99998 recipient_balance 2->3 nonce 1->2
+SUMMARY variant=metal tag=exec-m5-run1 max_rss_mib=8340 send_tx_s=764.19 prove_est_s=764.11 e2e_client_s=794.20 tx_bytes=311670 proof_bytes=267398 block=1124 
+[exec-m5-run2] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.08 send_tx_s=763.64 prove_est_s=763.56 incl_s=30.01 e2e_client_s=793.66 tx_bytes=311670 proof_bytes=267398 block=1389 tx=f605bc6502bdce3fbec9a107ca806d9707d865c42ec32ccafa2ef596988458a6 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-m5-run2] CHECK vault_balance 99998->99997 recipient_balance 3->4 nonce 2->3
+SUMMARY variant=metal tag=exec-m5-run2 max_rss_mib=8171 send_tx_s=763.64 prove_est_s=763.56 e2e_client_s=793.66 tx_bytes=311670 proof_bytes=267398 block=1389 
+[exec-m5-run3] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.08 send_tx_s=766.23 prove_est_s=766.14 incl_s=30.03 e2e_client_s=796.26 tx_bytes=311670 proof_bytes=267398 block=1656 tx=87c15d21f76f46239e28fb107395a0fee79cb07a2f52b5698e1f14561988a8b5 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-m5-run3] CHECK vault_balance 99997->99996 recipient_balance 4->5 nonce 3->4
+SUMMARY variant=metal tag=exec-m5-run3 max_rss_mib=7940 send_tx_s=766.23 prove_est_s=766.14 e2e_client_s=796.26 tx_bytes=311670 proof_bytes=267398 block=1656 
+[create-m10] RESULT op=create label=c10 m=10 n=12 sync_s=0.01 dry_run_s=0.03 send_tx_s=624.49 prove_est_s=624.45 incl_s=30.01 e2e_client_s=654.51 tx_bytes=311206 proof_bytes=267166 block=1875 tx=93652c45d3dabf95d64ca1149af5be9090b35e3958bfdd4cd2416fef70ef63d0 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+SUMMARY variant=metal tag=create-m10 max_rss_mib=8107 send_tx_s=624.49 prove_est_s=624.45 e2e_client_s=654.51 tx_bytes=311206 proof_bytes=267166 block=1875 
+[fund-m10] RESULT op=fund label=c10 m=10 n=12 amount=100000 sync_s=0.01 dry_run_s=0.00 send_tx_s=565.94 prove_est_s=565.93 incl_s=30.01 e2e_client_s=595.96 tx_bytes=312046 proof_bytes=267514 block=2074 tx=a224579e27317dcf5780a017dcd1a2c331614947978c42d7434a0cd246d66bea image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+SUMMARY variant=metal tag=fund-m10 max_rss_mib=8344 send_tx_s=565.94 prove_est_s=565.93 e2e_client_s=595.96 tx_bytes=312046 proof_bytes=267514 block=2074 
+[exec-m10-warmup] RESULT op=exec label=c10 m=10 n=12 sigs=12 sync_s=0.00 dry_run_s=0.13 send_tx_s=918.98 prove_est_s=918.85 incl_s=30.01 e2e_client_s=948.99 tx_bytes=311670 proof_bytes=267398 block=2391 tx=0d8fd30d619735287d2bbc34e673aa01b733f029f6f6f34c85f972e749846e84 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-m10-warmup] CHECK vault_balance 100000->99999 recipient_balance 5->6 nonce 0->1
+SUMMARY variant=metal tag=exec-m10-warmup max_rss_mib=8273 send_tx_s=918.98 prove_est_s=918.85 e2e_client_s=948.99 tx_bytes=311670 proof_bytes=267398 block=2391 
+[exec-m10-run1] RESULT op=exec label=c10 m=10 n=12 sigs=12 sync_s=0.00 dry_run_s=0.13 send_tx_s=920.11 prove_est_s=919.98 incl_s=30.01 e2e_client_s=950.12 tx_bytes=311670 proof_bytes=267398 block=2709 tx=a5023b8d88063dab8ed44493591d06cbd434dc9c0062793c9e352a54844609bd image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-m10-run1] CHECK vault_balance 99999->99998 recipient_balance 6->7 nonce 1->2
+SUMMARY variant=metal tag=exec-m10-run1 max_rss_mib=8007 send_tx_s=920.11 prove_est_s=919.98 e2e_client_s=950.12 tx_bytes=311670 proof_bytes=267398 block=2709 
+[exec-m10-run2] RESULT op=exec label=c10 m=10 n=12 sigs=12 sync_s=0.00 dry_run_s=0.13 send_tx_s=918.58 prove_est_s=918.45 incl_s=30.01 e2e_client_s=948.58 tx_bytes=311670 proof_bytes=267398 block=3027 tx=7191e3cfa67914d836985cb5f5d3de4a16f9c4f4b13ee118a1ca9a0a59db58fd image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-m10-run2] CHECK vault_balance 99998->99997 recipient_balance 7->8 nonce 2->3
+SUMMARY variant=metal tag=exec-m10-run2 max_rss_mib=8131 send_tx_s=918.58 prove_est_s=918.45 e2e_client_s=948.58 tx_bytes=311670 proof_bytes=267398 block=3027 
+[exec-m10-run3] RESULT op=exec label=c10 m=10 n=12 sigs=12 sync_s=0.00 dry_run_s=0.13 send_tx_s=915.75 prove_est_s=915.63 incl_s=30.01 e2e_client_s=945.76 tx_bytes=311670 proof_bytes=267398 block=3343 tx=0bcaae4e95643cd682ea0bdccf3c93322212aef44ac800513c82335abda2fc69 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-m10-run3] CHECK vault_balance 99997->99996 recipient_balance 8->9 nonce 3->4
+SUMMARY variant=metal tag=exec-m10-run3 max_rss_mib=7817 send_tx_s=915.75 prove_est_s=915.63 e2e_client_s=945.76 tx_bytes=311670 proof_bytes=267398 block=3343 

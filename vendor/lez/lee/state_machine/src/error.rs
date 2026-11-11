@@ -1,0 +1,196 @@
+use std::io;
+
+use lee_core::{
+    account::{AccountId, Actor, Cycles},
+    execution_state::ExecutionError,
+    native_token::TransferError,
+};
+use thiserror::Error;
+
+#[macro_export]
+macro_rules! ensure {
+    ($cond:expr, $err:expr) => {
+        if !$cond {
+            return Err($err.into());
+        }
+    };
+}
+
+#[derive(Error, Debug)]
+pub enum LeeError {
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
+    #[error("Execution exceeded its cycle budget of {budget} cycles")]
+    OutOfGas { budget: Cycles },
+
+    #[error("Program violated execution rules")]
+    InvalidProgramBehavior(#[from] InvalidProgramBehaviorError),
+
+    #[error("Serialization error: {0}")]
+    MessageSerializationError(String),
+
+    #[error("Invalid private key")]
+    InvalidPrivateKey,
+
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
+
+    #[error("Invalid Public Key")]
+    InvalidPublicKey(#[source] k256::schnorr::Error),
+
+    #[error("Invalid hex for public key")]
+    InvalidHexPublicKey(#[source] hex::FromHexError),
+
+    #[error("Failed to write program input: {0}")]
+    ProgramWriteInputFailed(String),
+
+    #[error("Failed to execute program: {0}")]
+    ProgramExecutionFailed(String),
+
+    #[error("Program exited with non-zero code {code} after {cycles} cycles")]
+    ProgramExitedWithCode { code: u32, cycles: Cycles },
+
+    #[error("Failed to prove program: {0}")]
+    ProgramProveFailed(String),
+
+    #[error("Invalid transaction: {0}")]
+    TransactionDeserializationError(String),
+
+    #[error("Core error")]
+    Core(#[from] lee_core::error::LeeCoreError),
+
+    #[error("Circuit output deserialization error: {0}")]
+    CircuitOutputDeserializationError(String),
+
+    #[error("Invalid privacy preserving execution circuit proof")]
+    InvalidPrivacyPreservingProof,
+
+    #[error("Circuit proving error")]
+    CircuitProvingError(String),
+
+    #[error("Invalid program bytecode")]
+    InvalidProgramBytecode(#[source] anyhow::Error),
+
+    #[error("Program already exists")]
+    ProgramAlreadyExists,
+
+    #[error("Max account nonce reached")]
+    MaxAccountNonceReached,
+
+    #[error("Execution outside of the validity window")]
+    OutOfValidityWindow,
+
+    #[error("Unknown program")]
+    UnknownProgram {
+        /// An unknown program at the transaction root is detectable before execution, so it is
+        /// not charged; one reached later is learned only by executing, so it is.
+        at_root: bool,
+    },
+
+    #[error("A durable async message reached {actor:?}, an address without a recovery binding")]
+    UnboundAsyncDestination { actor: Actor },
+}
+
+impl LeeError {
+    /// Whether a failing action is charged-and-reverted (the block stays valid)
+    /// rather than rejecting the block.
+    ///
+    /// - A malformed transaction is caught before the program runs, costs no cycles, and rejects
+    ///   the block.
+    /// - Auth and nonce failures never reach here; they bail before execution.
+    /// - Every other failure that surfaces during or after execution, so it is charged and
+    ///   reverted: the payer pays and the nonce advances.
+    #[must_use]
+    pub const fn is_chargeable(&self) -> bool {
+        !matches!(
+            self,
+            Self::InvalidInput(_) | Self::UnknownProgram { at_root: true }
+        )
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum InvalidProgramBehaviorError {
+    #[error("Called program {program_account_id} which is not listed in dependencies")]
+    UndeclaredProgramDependency { program_account_id: AccountId },
+
+    #[error("Invalid native transfer: {0}")]
+    NativeTransferFailed(#[from] TransferError),
+
+    #[error(transparent)]
+    Execution(#[from] ExecutionError),
+}
+
+impl From<ExecutionError> for LeeError {
+    fn from(error: ExecutionError) -> Self {
+        match error {
+            ExecutionError::EmptyValidityWindowIntersection => Self::OutOfValidityWindow,
+            ExecutionError::PublicActorStateUnavailable { .. }
+            | ExecutionError::DuplicateWitness { .. }
+            | ExecutionError::FamilyBindingConflict { .. }
+            | ExecutionError::PublicFamilyMemberDeclared { .. }
+            | ExecutionError::AliasCollision { .. }
+            | ExecutionError::MissingSenderPresentation { .. }
+            | ExecutionError::LoaderOutsidePublicExecution { .. }
+            | ExecutionError::UndeclaredActor { .. }
+            | ExecutionError::UnadmittedPublicActor { .. }
+            | ExecutionError::UnreachedPromotion { .. }
+            | ExecutionError::TransitionInputMismatch { .. }
+            | ExecutionError::PublicAndPrivate { .. }
+            | ExecutionError::MissingPredictedCrossMessages { .. }
+            | ExecutionError::UnusedPredictedCrossMessages
+            | ExecutionError::UnwitnessedFeePayer { .. }
+            | ExecutionError::FeePayerWithoutAuthorization { .. }
+            | ExecutionError::UndeclaredCrossMessageSender { .. }
+            | ExecutionError::BoundaryMismatch { .. }
+            | ExecutionError::CrossMessageMismatch { .. }
+            | ExecutionError::IncompleteBoundary => Self::InvalidProgramBehavior(error.into()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[derive(Debug)]
+    enum TestError {
+        TestErr,
+    }
+
+    fn test_function_ensure(cond: bool) -> Result<(), TestError> {
+        ensure!(cond, TestError::TestErr);
+
+        Ok(())
+    }
+
+    #[test]
+    fn ensure_works() {
+        assert!(test_function_ensure(true).is_ok());
+        assert!(test_function_ensure(false).is_err());
+    }
+
+    #[test]
+    fn is_chargeable_charges_execution_failures_rejects_structural_defects() {
+        use super::LeeError;
+
+        // Anything that surfaces during or after execution has already burned
+        // proposer cycles, so it is charged and reverted rather than rejecting
+        // the block. A guest-panic revert (insufficient balance, failed swap,
+        // `assert!`) surfaces as `ProgramExecutionFailed` — the common case.
+        assert!(LeeError::ProgramExecutionFailed("guest panicked".into()).is_chargeable());
+        assert!(LeeError::OutOfGas { budget: 0 }.is_chargeable());
+        // Post-execution: the validity window is read off the program output.
+        assert!(LeeError::OutOfValidityWindow.is_chargeable());
+
+        // An unknown program reached after the root is only discovered once an
+        // earlier transition executed, so it is charged; at the root it is detectable
+        // before execution and rejects instead.
+        assert!(LeeError::UnknownProgram { at_root: false }.is_chargeable());
+        assert!(!LeeError::UnknownProgram { at_root: true }.is_chargeable());
+
+        // A malformed transaction is caught before execution, so it costs no
+        // cycles and rejects the block instead of charging.
+        assert!(!LeeError::InvalidInput("malformed".into()).is_chargeable());
+    }
+}

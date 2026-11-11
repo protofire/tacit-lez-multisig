@@ -1,0 +1,83 @@
+#![expect(
+    clippy::shadow_unrelated,
+    clippy::tests_outside_test_module,
+    reason = "We don't care about these in tests"
+)]
+
+use std::time::Duration;
+
+use anyhow::Result;
+use indexer_service_rpc::RpcClient as _;
+use integration_tests::{
+    TIME_TO_WAIT_FOR_BLOCK_SECONDS, TestContext,
+    config::INITIAL_PUBLIC_BALANCES_FOR_WALLET,
+    public_mention,
+    utils::{account_balance, get_account, send, wait_for_indexer_to_catch_up},
+};
+use wallet::{
+    account::Label,
+    cli::{CliAccountMention, Command},
+};
+
+#[tokio::test]
+async fn indexer_state_consistency_with_labels() -> Result<()> {
+    let mut ctx = TestContext::new().await?;
+
+    // Assign labels to both accounts
+    let from_label = Label::new("idx-sender-label");
+    let to_label = Label::new("idx-receiver-label");
+
+    let label_cmd = Command::Account(wallet::cli::account::AccountSubcommand::Label {
+        account_id: public_mention(ctx.existing_public_accounts()[0]),
+        label: from_label.clone(),
+    });
+    wallet::cli::execute_subcommand(ctx.wallet_mut(), label_cmd).await?;
+
+    let label_cmd = Command::Account(wallet::cli::account::AccountSubcommand::Label {
+        account_id: public_mention(ctx.existing_public_accounts()[1]),
+        label: to_label.clone(),
+    });
+    wallet::cli::execute_subcommand(ctx.wallet_mut(), label_cmd).await?;
+
+    // Send using labels instead of account IDs
+    send(
+        &mut ctx,
+        CliAccountMention::Label(from_label),
+        CliAccountMention::Label(to_label),
+        100,
+    )
+    .await?;
+
+    log::info!("Waiting for next block creation");
+    tokio::time::sleep(Duration::from_secs(TIME_TO_WAIT_FOR_BLOCK_SECONDS)).await;
+
+    let acc_1_balance = account_balance(&ctx, ctx.existing_public_accounts()[0]).await?;
+    let acc_2_balance = account_balance(&ctx, ctx.existing_public_accounts()[1]).await?;
+
+    // Charged transfer: the recipient gains exactly the amount; the sender
+    // pays the amount plus a positive fee within the protocol ceiling.
+    assert_eq!(acc_2_balance, INITIAL_PUBLIC_BALANCES_FOR_WALLET[1] + 100);
+    let fee = (INITIAL_PUBLIC_BALANCES_FOR_WALLET[0] - 100)
+        .checked_sub(acc_1_balance)
+        .expect("sender must be debited at least the transferred amount");
+    assert!(
+        fee > 0 && fee <= wallet::DEFAULT_MAX_FEE,
+        "the sender must pay a positive fee within the protocol ceiling, got {fee}",
+    );
+
+    log::info!("Waiting for indexer to parse blocks");
+    wait_for_indexer_to_catch_up(&ctx).await?;
+
+    let acc1_ind_state = ctx
+        .indexer_client()
+        .get_account(ctx.existing_public_accounts()[0].into())
+        .await
+        .unwrap();
+    let acc1_seq_state = get_account(&ctx, ctx.existing_public_accounts()[0]).await?;
+
+    assert_eq!(acc1_ind_state, Some(acc1_seq_state.into()));
+
+    log::info!("Indexer state is consistent after label-based transfer");
+
+    Ok(())
+}

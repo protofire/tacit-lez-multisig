@@ -1,0 +1,46 @@
+[package]
+name = "msig-host"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "RFP-005 multisig host side: deployed program account, tx builders, executor harness, e2e and real-proof runners"
+
+[features]
+default = ["e2e"]
+# live-sequencer e2e (wallet, RPC client); off for the prove-only build on the GPU box
+e2e = ["dep:wallet", "dep:common", "dep:program_loader_core", "dep:sequencer_service_rpc", "dep:risc0-binfmt", "dep:tokio", "dep:env_logger"]
+# real proving in-process (lee `prove`); `cuda` adds the RISC Zero CUDA prover (Linux + nvcc)
+prove = ["lee/prove"]
+cuda = ["prove", "risc0-zkvm/cuda"]
+# Apple GPU prover (macOS, scripts/bench-mac.sh)
+metal = ["prove", "risc0-zkvm/metal"]
+
+[dependencies]
+msig-core = { path = "../msig-core" }
+msig-methods = { path = "../msig-methods" }
+msig-plumb = { path = "../msig-plumb" } # bench-only guest (msig-cycles)
+lee = { workspace = true, features = ["test-utils"] } # test-utils: seed a private account's commitment (tests, prove runner)
+lee_core = { workspace = true, features = ["host"] }
+key_protocol.workspace = true
+wallet = { workspace = true, optional = true }
+common = { workspace = true, optional = true }
+program_loader_core = { workspace = true, optional = true }
+sequencer_service_rpc = { workspace = true, optional = true }
+risc0-zkvm = { version = "=3.0.5", default-features = false, features = ["std"] }
+risc0-binfmt = { version = "3.0.2", optional = true }
+borsh.workspace = true
+sha2.workspace = true
+k256.workspace = true
+hex = "0.4"
+anyhow = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }
+# msig-bench: RUST_LOG=risc0_zkvm=info + RISC0_INFO=1 prints per-session cycle stats (evidence/tx-cycles.md)
+env_logger = { version = "0.11", optional = true }
+
+[[bin]]
+name = "msig-e2e"
+required-features = ["e2e"]
+
+[[bin]]
+name = "msig-bench"
+required-features = ["e2e"]

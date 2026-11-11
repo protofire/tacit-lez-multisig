@@ -1,0 +1,37 @@
+[workspace]
+resolver = "3"
+members = ["crates/msig-core", "crates/msig-methods", "crates/msig-plumb", "crates/msig-host", "crates/msig-cli"]
+exclude = ["vendor", "spikes"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+lee = { path = "vendor/lez/lee/state_machine" }
+lee_core = { path = "vendor/lez/lee/state_machine/core" }
+wallet = { path = "vendor/lez/lez/wallet" }
+common = { path = "vendor/lez/lez/common" }
+key_protocol = { path = "vendor/lez/lee/key_protocol" }
+program_loader_core = { path = "vendor/lez/lez/programs/program_loader/core" }
+sequencer_service_rpc = { path = "vendor/lez/lez/sequencer/service/rpc", features = ["client"] }
+borsh = { version = "1.5.7", features = ["derive"] }
+sha2 = "0.10.8"
+k256 = { version = "0.13.4", default-features = false, features = ["schnorr"] }
+
+# same patch as vendor/lez/Cargo.toml (patches apply only from the root workspace)
+[patch.crates-io]
+keccak = { git = "https://github.com/logos-blockchain/sponges", rev = "3a56e99771beedf04946eab21a4a62adc2951377" }
+
+# as vendor/lez/Cargo.toml: unoptimized, the wallet's storage key derivation takes seconds
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
+# lee refuses `test-utils` in a build without debug assertions; the prove runner seeds the vault's
+# commitment with it (msig-host `Chain::seed_vault`), so release builds keep lee's debug assertions
+# (host-side lee code only; the risc0 prover crates stay fully optimised without them).
+[profile.release.package.lee]
+debug-assertions = true

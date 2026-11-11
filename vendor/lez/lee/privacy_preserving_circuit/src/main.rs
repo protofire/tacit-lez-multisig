@@ -1,0 +1,136 @@
+use std::collections::HashMap;
+
+use lee_core::{
+    MessageWitness, PrivacyPreservingCircuitInput, ProgramImageWitness, ProvingInput,
+    account::AccountId,
+    execution_state::{PrivatePart, TransactionEntry},
+    native_token::NATIVE_TOKEN_PROGRAM_ID,
+    program::{PROGRAM_LOADER_ACCOUNT_ID, ProgramId, read_input_frame},
+};
+use private_backend::PrivateBackend;
+use risc0_zkvm::guest::env;
+
+mod output;
+mod private_backend;
+
+fn main() {
+    let PrivacyPreservingCircuitInput {
+        input,
+        program_image_witnesses,
+        shadow_program_witnesses,
+        responses,
+        sender_presentations,
+        message_seals,
+        predicted_cross_messages,
+    } = borsh::from_slice(&read_input_frame()).expect("circuit input must be valid borsh");
+    let public_root = input.public_root();
+    let ProvingInput {
+        root,
+        claims,
+        fee,
+        public_context,
+        private_witnesses,
+        dummy_inputs,
+        ciphertext_padding,
+        recoveries,
+        private_promotions,
+    } = input;
+
+    // The sequencer checks disclosed images against chain state.
+    // For undisclosed images, `to_claim` checks header immutability and derives the membership
+    // root. Native token and loader accounts run protocol code and cannot claim guest images.
+    assert!(
+        !program_image_witnesses.iter().any(|witness| {
+            let account_id = witness.account_id();
+            account_id == NATIVE_TOKEN_PROGRAM_ID || account_id == PROGRAM_LOADER_ACCOUNT_ID
+        }),
+        "A reserved program account has no deployable bytecode to claim"
+    );
+    let mut image_id_by_account_id: HashMap<AccountId, ProgramId> = program_image_witnesses
+        .iter()
+        .map(|witness| (witness.account_id(), witness.image_id()))
+        .collect();
+    for witness in &shadow_program_witnesses {
+        let account_id = AccountId::for_shadow_program(&witness.image_id);
+        let previous = image_id_by_account_id.insert(account_id, witness.image_id);
+        assert!(
+            previous.is_none(),
+            "account {account_id} claimed by both a program-image claim and a shadow witness"
+        );
+    }
+
+    // Extract the top-level message and whether it is a consumed async message, then the claims.
+    let mut message_spends = Vec::with_capacity(claims.len().saturating_add(1));
+    let mut spend = |witness: MessageWitness| {
+        let (nullifier, spent_under) = witness
+            .spend(&private_witnesses)
+            .unwrap_or_else(|e| panic!("{e}"));
+        message_spends.push(output::MessageSpend {
+            nullifier,
+            root: spent_under,
+            filler: witness.filler,
+        });
+        witness.body
+    };
+    let root = match root {
+        TransactionEntry::Sync(call) => TransactionEntry::Sync(call),
+        TransactionEntry::Async(witness) => TransactionEntry::Async(spend(witness)),
+    };
+    let claims: Vec<_> = claims.into_iter().map(&mut spend).collect();
+
+    // Generate the private part of the transaction.
+    let private_part = PrivatePart::new(
+        // Feed the public context assumed.
+        public_context.clone(),
+        // The top-level message.
+        root,
+        // The received messages delivered before it.
+        claims,
+        // The fee transfer run after it.
+        fee,
+        // All the private actor witnesses.
+        &private_witnesses,
+        // Assumed messages between private and public actors.
+        predicted_cross_messages,
+    )
+    .unwrap_or_else(|e| panic!("{e}"));
+
+    // Generate the backend to execute,
+    let mut backend = PrivateBackend::new(
+        image_id_by_account_id,
+        // Feed the precomputed actor responces.
+        responses,
+        // Feed the presentations of the hidden accounts.
+        sender_presentations,
+        // Feed which async messages will be processed synchronously.
+        private_promotions,
+    );
+
+    // Execute the private part of the transaction.
+    let outcome = private_part
+        .execute(&mut backend)
+        .unwrap_or_else(|e| panic!("{e}"));
+    backend.finish();
+
+    let program_image_claims = program_image_witnesses
+        .iter()
+        .map(ProgramImageWitness::to_claim)
+        .collect::<Result<Vec<_>, _>>()
+        .expect("every program image witness must produce a valid claim");
+
+    let output = output::compute_circuit_output(
+        outcome,
+        public_context,
+        public_root,
+        &private_witnesses,
+        message_spends,
+        dummy_inputs,
+        ciphertext_padding,
+        program_image_claims,
+        &recoveries,
+        message_seals,
+        fee,
+    );
+
+    env::commit_slice(&lee_core::to_borsh_frame(&output));
+}

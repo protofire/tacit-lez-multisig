@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RISC0_DEV_MODE: "1" # executor only, no proofs
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  idl:
+    name: IDL in sync with Rust sources, loads in SPEL types
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/gen_idl.py --check
+      # SPEL's SpelIdl structs fetched at a pinned commit (serde only); no risc0 needed.
+      - run: idl/spel-check/run.sh
+
+  test:
+    name: cargo test --workspace (dev mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: cargo test --workspace --locked
+
+  image-id:
+    name: reproducible guest build matches the frozen image id
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      # Pinned risc0 Docker builder (digest in crates/msig-methods/build.rs); host-independent.
+      - name: build guest in Docker, compare with the latest evidence/IMAGE-ID-v*.md
+        run: |
+          set -o pipefail
+          frozen_file=$(printf '%s\n' evidence/IMAGE-ID-v*.md | sort -V | tail -n1)
+          want=$(sed -nE 's/^msig ([0-9a-f]{64})$/\1/p' "$frozen_file")
+          test -n "$want" || { echo "no 'msig <hex>' line in $frozen_file"; exit 1; }
+          scripts/image-ids.sh | tee image-ids.txt
+          got=$(sed -nE 's/^msig ([0-9a-f]{64})$/\1/p' image-ids.txt)
+          echo "frozen ($frozen_file): $want"
+          echo "built:                 $got"
+          test "$got" = "$want"
+
+  e2e-private:
+    name: private e2e smoke flow (dev mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      # Standalone sequencer from the vendored LEZ (1806e87, v0.4.0-rc1); own workspace and lockfile.
+      - name: build sequencer_service
+        run: cargo build --release --locked -p sequencer_service --features standalone --manifest-path vendor/lez/Cargo.toml
+      - name: scripts/e2e-private.sh
+        env:
+          LEZ_SEQUENCER_BIN: ${{ github.workspace }}/vendor/lez/target/release/sequencer_service
+          MSIG_SEQ_WAIT: "300"
+          RUST_LOG: info
+        run: scripts/e2e-private.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-private
+          path: |
+            evidence/e2e-private-transcript.txt
+            target/e2e-private/sequencer.log
+            target/e2e-private/seq-setup.log
+          if-no-files-found: ignore

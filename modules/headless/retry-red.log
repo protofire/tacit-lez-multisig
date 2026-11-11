@@ -1,0 +1,26 @@
+# modules/headless/headless.sh MODE=retry  2026-11-10T16:15:53Z  commit 2aa64da-dirty
+# LEZ v0.4.0-rc1 1806e87 sequencer $LEZ_SEQUENCER_BIN on 127.0.0.1:3074, RISC0_DEV_MODE=1 (proofs are dev-mode receipts)
+$ direct create <repo>/target/module-headless/wallet 3 2 1000
+Transaction hash is d4a031f5720da03dbcee1b0513ebfee7f95ade9f6558577b5d6512a5348b2071
+Transaction is included in block 2
+Transaction hash is 6501f8cf5577549694cb4c409ef3ce494301d9877e074edda12445625f77eb45
+Transaction is included in block 12
+Transaction hash is e6230a29e359fc9903f9aa378bcba362a08a8e089e8c13207839f7d152ed9b9d
+Transaction is included in block 22
+Transaction hash is 518c02ae214525554002fae66a44b452f4845c07d8c116e694bac0dc45813c7a
+Transaction is included in block 32
+{"balance":"1000","createBlock":53,"epoch":0,"fundBlock":63,"members":3,"nonce":0,"ok":true,"program":"Hun9qyYaYMzkrdDF2W65kXky3h113WANuGXpmXCk45LM","threshold":2,"vault":"4yj1VzZBuHA7NT1T57gWsxd5GeywBHXBZGiSYBTKajxi"}
+$ direct execute <repo>/target/module-headless/wallet alice 100 1,2
+{"approvals":2,"block":83,"nonce":1,"ok":true,"recipient":"CtaAYHGi4Ap2FWst3aMDEBkteBQGp3QAbK9wqCLhyv9h","recipientAfter":"101","recipientBefore":"1","threshold":2,"vaultAfter":"900","vaultBefore":"1000"}
+# H2: inclusion polling fails after submit (seq_tx_poll_max_blocks=1), then the caller retries the same payment
+$ direct execute <repo>/target/module-headless/wallet alice 300 1,2
+{"error":"Transaction not found in preconfigured amount of blocks","ok":false}
+$ direct execute <repo>/target/module-headless/wallet alice 300 1,2
+{"approvals":2,"block":97,"nonce":3,"ok":true,"recipient":"CtaAYHGi4Ap2FWst3aMDEBkteBQGp3QAbK9wqCLhyv9h","recipientAfter":"701","recipientBefore":"401","threshold":2,"vaultAfter":"300","vaultBefore":"600"}
+# H2 expect: alice ends at 401 (1 + 100 + 300), V at 600; a second 300 is a double payment
+# H1: create died after funding, before the marker (simulated: msig.json removed), then the caller retries create
+$ direct create <repo>/target/module-headless/wallet 3 2 1000
+{"balance":"1000","createBlock":118,"epoch":0,"fundBlock":128,"members":3,"nonce":0,"ok":true,"program":"Hun9qyYaYMzkrdDF2W65kXky3h113WANuGXpmXCk45LM","threshold":2,"vault":"9cC4yuBKxUEgLy4UocbqQ186b7FDy2mZeiKWeqHMdJn8"}
+# H1 expect: refused (the group of V1 must survive); then V1 still executes
+$ direct execute <repo>/target/module-headless/wallet alice 50 1,2
+{"error":"TransactionBuildError(InvalidProgramBehavior(Execution(UndeclaredActor { actor: Actor { account_id: 4yj1VzZBuHA7NT1T57gWsxd5GeywBHXBZGiSYBTKajxi, program_account_id: Hun9qyYaYMzkrdDF2W65kXky3h113WANuGXpmXCk45LM } })))","ok":false}

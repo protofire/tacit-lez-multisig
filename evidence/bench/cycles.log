@@ -1,0 +1,15 @@
+CYCLES guest=msig m=1 n=3 sigs=3 user_cycles=840849 segments=1 padded_cycles=1048576
+CYCLES guest=plumb m=1 n=3 sigs=3 user_cycles=29193 segments=1 padded_cycles=131072
+CYCLES guest=msig m=2 n=4 sigs=4 user_cycles=1112578 segments=2 padded_cycles=1310720
+CYCLES guest=plumb m=2 n=4 sigs=4 user_cycles=31408 segments=1 padded_cycles=131072
+CYCLES guest=msig m=5 n=7 sigs=7 user_cycles=1930308 segments=2 padded_cycles=2097152
+CYCLES guest=plumb m=5 n=7 sigs=7 user_cycles=37808 segments=1 padded_cycles=131072
+CYCLES guest=msig m=10 n=12 sigs=12 user_cycles=3286859 segments=4 padded_cycles=3670016
+CYCLES guest=plumb m=10 n=12 sigs=12 user_cycles=48711 segments=1 padded_cycles=131072
+CYCLES guest=msig m=16 n=18 sigs=18 user_cycles=4920124 segments=5 padded_cycles=5242880
+CYCLES guest=plumb m=16 n=18 sigs=18 user_cycles=59911 segments=1 padded_cycles=131072
+CYCLES guest=msig m=24 n=26 sigs=26 user_cycles=7092998 segments=8 padded_cycles=7602176
+CYCLES guest=plumb m=24 n=26 sigs=26 user_cycles=76250 segments=1 padded_cycles=131072
+CYCLES guest=msig m=30 n=30 sigs=32 user_cycles=8711706 segments=9 padded_cycles=9437184
+CYCLES guest=plumb m=30 n=30 sigs=32 user_cycles=87504 segments=1 padded_cycles=262144
+IMAGES msig=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 plumb=057396b3099b8a16ffe886b07728752c42accb513e0c4cc29c5004e5f446f410 (plumb is bench-only, never deployed)

@@ -1,0 +1,78 @@
+[package]
+name = "multisig_module"
+version = "0.1.0"
+# 2021: the builder-generated provider glue uses plain #[no_mangle]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Logos module for the RFP-005 multisig prototype: create and execute a private M-of-N multisig on a LEZ v0.4 sequencer."
+rust-version = "1.98"
+
+# Own workspace (the builder compiles this directory alone). crates/msig-core, crates/msig-host and
+# vendor are symlinks into the repo; flake.nix stages real copies. crates/msig-methods is the
+# prebuilt-guest stand-in (the Nix build has no risc0 guest toolchain).
+[workspace]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+lee = { path = "../../../vendor/lez/lee/state_machine" }
+lee_core = { path = "../../../vendor/lez/lee/state_machine/core" }
+wallet = { path = "../../../vendor/lez/lez/wallet" }
+common = { path = "../../../vendor/lez/lez/common" }
+key_protocol = { path = "../../../vendor/lez/lee/key_protocol" }
+program_loader_core = { path = "../../../vendor/lez/lez/programs/program_loader/core" }
+sequencer_service_rpc = { path = "../../../vendor/lez/lez/sequencer/service/rpc", features = ["client"] }
+borsh = { version = "1.5.7", features = ["derive"] }
+sha2 = "0.10.8"
+k256 = { version = "0.13.4", default-features = false, features = ["schnorr"] }
+
+[patch.crates-io]
+keccak = { git = "https://github.com/logos-blockchain/sponges", rev = "3a56e99771beedf04946eab21a4a62adc2951377" }
+
+# The vendored git checkout lacks ../RAPIDSNARK_VERSION, which rust-rapidsnark's build.rs reads; this copy has it
+# next to crates/ (third_party/rapidsnark/RAPIDSNARK_VERSION). Source unchanged, rev e91187f.
+[patch."https://github.com/logos-blockchain/logos-blockchain-rust-rapidsnark.git"]
+rust-rapidsnark = { path = "third_party/rapidsnark/crates" }
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+msig-core = { path = "crates/msig-core" }
+msig-host = { path = "crates/msig-host" }
+msig-methods = { path = "crates/msig-methods" }
+lee.workspace = true
+lee_core.workspace = true
+wallet.workspace = true
+common.workspace = true
+key_protocol.workspace = true
+program_loader_core.workspace = true
+sequencer_service_rpc.workspace = true
+borsh.workspace = true
+sha2.workspace = true
+risc0-zkvm = { version = "=3.0.5", default-features = false, features = ["std"] }
+risc0-binfmt = "3.0.2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+anyhow = "1"
+hex = "0.4"
+serde_json = "1"
+logos-rust-sdk = { path = "../logos-rust-sdk-src", optional = true }
+
+[features]
+default = ["logos_module"]
+# lee/prove: in-process prover for the plugin; without it risc0 spawns `r0vm`, which the Linux host does not have.
+# Not in host (`--no-default-features`) builds: its metal kernels do not compile on the Mac, which has `r0vm`.
+logos_module = ["dep:logos-rust-sdk", "lee/prove"]
+
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
+# msig-host builds lee with test-utils, which lee refuses without debug assertions (as the repo root).
+[profile.release.package.lee]
+debug-assertions = true

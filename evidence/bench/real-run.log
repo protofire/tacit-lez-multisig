@@ -1,0 +1,68 @@
+## init: init
+[init] RESULT op=init deployed_at=2yigtJM3BuZ5TPsVKtB7DU1VewL7rn7R6Sz8DsrVBf7a image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 fee_shield_block=62 dev_mode=false
+[init] STAT wall_s=238.11 max_rss_mib=673 gpu_before_mib=1311 gpu_peak_mib=11022 gpu_peak_delta_mib=9711
+## create-warmup: create 5 7 warm
+[create-warmup] RESULT op=create label=warm m=5 n=7 sync_s=0.04 dry_run_s=0.03 send_tx_s=54.19 prove_est_s=54.15 incl_s=30.01 e2e_client_s=84.24 tx_bytes=311206 proof_bytes=267166 block=100 tx=ebfbaf08fd67332512d912462cb1d9e6c7f14772e5b5a29af8a962a0252ff1b9 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[create-warmup] STAT wall_s=84.14 max_rss_mib=739 gpu_before_mib=1261 gpu_peak_mib=11108 gpu_peak_delta_mib=9847
+## fund-warmup: fund warm 1000
+[fund-warmup] RESULT op=fund label=warm m=5 n=7 amount=1000 sync_s=0.00 dry_run_s=0.01 send_tx_s=53.53 prove_est_s=53.53 incl_s=30.01 e2e_client_s=83.55 tx_bytes=312046 proof_bytes=267514 block=128 tx=3be89f2312aa5dfded48a7c44052b43609eb4db4dd9c8a4b515cc9ac9abc1d16 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[fund-warmup] STAT wall_s=83.01 max_rss_mib=663 gpu_before_mib=1261 gpu_peak_mib=11108 gpu_peak_delta_mib=9847
+## create-c5: create 5 7 c5
+[create-c5] RESULT op=create label=c5 m=5 n=7 sync_s=0.00 dry_run_s=0.04 send_tx_s=53.76 prove_est_s=53.72 incl_s=30.01 e2e_client_s=83.77 tx_bytes=311206 proof_bytes=267166 block=156 tx=2971c14c40f44e2f32e55e019c269c2ae322468ccd136d430fd5a19d03e04329 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[create-c5] STAT wall_s=83.50 max_rss_mib=744 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## fund-c5: fund c5 100000
+[fund-c5] RESULT op=fund label=c5 m=5 n=7 amount=100000 sync_s=0.00 dry_run_s=0.01 send_tx_s=52.23 prove_est_s=52.23 incl_s=30.01 e2e_client_s=82.24 tx_bytes=312046 proof_bytes=267514 block=184 tx=12ee13b4a5868d89b6984aae6f4a5da6f4da8e750584dc2846ea81c04156d1d6 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[fund-c5] STAT wall_s=81.93 max_rss_mib=663 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c5-warmup: exec c5
+[exec-c5-warmup] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.10 send_tx_s=69.50 prove_est_s=69.40 incl_s=30.01 e2e_client_s=99.51 tx_bytes=311670 proof_bytes=267398 block=217 tx=f24ecbdd226459eb3fc877105e25992869881aa7b76655c4ea2944248e3e7799 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c5-warmup] CHECK vault_balance 100000->99999 recipient_balance 1->2 nonce 0->1
+[exec-c5-warmup] STAT wall_s=99.34 max_rss_mib=736 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c5-run1: exec c5
+[exec-c5-run1] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.10 send_tx_s=69.55 prove_est_s=69.45 incl_s=30.01 e2e_client_s=99.57 tx_bytes=311670 proof_bytes=267398 block=250 tx=462c56ea9fa05f9960d16ecb353f522f308cc27a8905f4862f072cd72f5da4e2 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c5-run1] CHECK vault_balance 99999->99998 recipient_balance 2->3 nonce 1->2
+[exec-c5-run1] STAT wall_s=99.40 max_rss_mib=744 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c5-run2: exec c5
+[exec-c5-run2] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.10 send_tx_s=70.31 prove_est_s=70.21 incl_s=30.01 e2e_client_s=100.32 tx_bytes=311670 proof_bytes=267398 block=284 tx=d09fccc309eb9a85291b5a6a1ff32907817af28c68b9fa1cafb6f62d37566404 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c5-run2] CHECK vault_balance 99998->99997 recipient_balance 3->4 nonce 2->3
+[exec-c5-run2] STAT wall_s=100.29 max_rss_mib=744 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c5-run3: exec c5
+[exec-c5-run3] RESULT op=exec label=c5 m=5 n=7 sigs=7 sync_s=0.00 dry_run_s=0.10 send_tx_s=70.12 prove_est_s=70.01 incl_s=30.01 e2e_client_s=100.13 tx_bytes=311670 proof_bytes=267398 block=318 tx=d0b30c772933d9feb5af94904f38434006d16d2ef9005cba25a53a547fcfab8c image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c5-run3] CHECK vault_balance 99997->99996 recipient_balance 4->5 nonce 3->4
+[exec-c5-run3] STAT wall_s=99.98 max_rss_mib=744 gpu_before_mib=1261 gpu_peak_mib=11044 gpu_peak_delta_mib=9783
+## create-c10: create 10 12 c10
+[create-c10] RESULT op=create label=c10 m=10 n=12 sync_s=0.00 dry_run_s=0.04 send_tx_s=54.60 prove_est_s=54.55 incl_s=30.01 e2e_client_s=84.61 tx_bytes=311206 proof_bytes=267166 block=346 tx=ae7eb1a64054e486b236852f93842c83a80af696d886e499c68ae87680a9b7f9 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[create-c10] STAT wall_s=84.42 max_rss_mib=742 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## fund-c10: fund c10 100000
+[fund-c10] RESULT op=fund label=c10 m=10 n=12 amount=100000 sync_s=0.00 dry_run_s=0.01 send_tx_s=52.87 prove_est_s=52.86 incl_s=30.01 e2e_client_s=82.88 tx_bytes=312046 proof_bytes=267514 block=374 tx=26b0248480c2235ae4957bf4517cbdb4be3bd126afb5d517ca6c346028a979c4 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[fund-c10] STAT wall_s=82.63 max_rss_mib=696 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c10-warmup: exec c10
+[exec-c10-warmup] RESULT op=exec label=c10 m=10 n=12 sigs=12 sync_s=0.00 dry_run_s=0.16 send_tx_s=84.15 prove_est_s=83.99 incl_s=30.01 e2e_client_s=114.17 tx_bytes=311670 proof_bytes=267398 block=412 tx=82b7e117beea53d1f0868b5ecc968ea70ee3f2edd4c0015519fd777be004ca5e image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c10-warmup] CHECK vault_balance 100000->99999 recipient_balance 5->6 nonce 0->1
+[exec-c10-warmup] STAT wall_s=113.96 max_rss_mib=745 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c10-run1: exec c10
+[exec-c10-run1] RESULT op=exec label=c10 m=10 n=12 sigs=12 sync_s=0.00 dry_run_s=0.16 send_tx_s=83.44 prove_est_s=83.29 incl_s=30.01 e2e_client_s=113.46 tx_bytes=311670 proof_bytes=267398 block=450 tx=93524aee59d48f73fe9085d8fba3475e4aacbf93211e2e51f7e12700c05b745a image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c10-run1] CHECK vault_balance 99999->99998 recipient_balance 6->7 nonce 1->2
+[exec-c10-run1] STAT wall_s=113.40 max_rss_mib=745 gpu_before_mib=1261 gpu_peak_mib=11108 gpu_peak_delta_mib=9847
+## exec-c10-run2: exec c10
+[exec-c10-run2] RESULT op=exec label=c10 m=10 n=12 sigs=12 sync_s=0.00 dry_run_s=0.16 send_tx_s=80.34 prove_est_s=80.18 incl_s=30.01 e2e_client_s=110.35 tx_bytes=311670 proof_bytes=267398 block=487 tx=95f057954de8998e66b262a47cdfaf7a2d25c91adb5db7f643a9b275e76d919b image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c10-run2] CHECK vault_balance 99998->99997 recipient_balance 7->8 nonce 2->3
+[exec-c10-run2] STAT wall_s=110.17 max_rss_mib=745 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c10-run3: exec c10
+[exec-c10-run3] RESULT op=exec label=c10 m=10 n=12 sigs=12 sync_s=0.00 dry_run_s=0.16 send_tx_s=80.81 prove_est_s=80.65 incl_s=30.01 e2e_client_s=110.83 tx_bytes=311670 proof_bytes=267398 block=524 tx=e15b88f33464b2cbe478aa5733b78120d46ae0d61c6cfc1bc629f9fb88cc8506 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c10-run3] CHECK vault_balance 99997->99996 recipient_balance 8->9 nonce 3->4
+[exec-c10-run3] STAT wall_s=110.64 max_rss_mib=745 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## create-c30: create 30 30 c30
+[create-c30] RESULT op=create label=c30 m=30 n=30 sync_s=0.00 dry_run_s=0.06 send_tx_s=63.32 prove_est_s=63.27 incl_s=30.01 e2e_client_s=93.33 tx_bytes=311206 proof_bytes=267166 block=556 tx=76ee74c3a5e882e8fff8c2255d5e3d3156e9a8b333a67e055c6769421e0fd4d3 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[create-c30] STAT wall_s=93.19 max_rss_mib=745 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## fund-c30: fund c30 100000
+[fund-c30] RESULT op=fund label=c30 m=30 n=30 amount=100000 sync_s=0.00 dry_run_s=0.01 send_tx_s=52.57 prove_est_s=52.56 incl_s=30.01 e2e_client_s=82.58 tx_bytes=312046 proof_bytes=267514 block=583 tx=54ec0db8571c2ee9d2ef063e0ac44724f0ab0f88592155098a85bf187c876d6e image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[fund-c30] STAT wall_s=82.36 max_rss_mib=684 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c30-warmup: exec c30
+[exec-c30-warmup] RESULT op=exec label=c30 m=30 n=30 sigs=32 sync_s=0.00 dry_run_s=0.37 send_tx_s=132.29 prove_est_s=131.92 incl_s=30.01 e2e_client_s=162.30 tx_bytes=311670 proof_bytes=267398 block=638 tx=45bdc81adbfc4a5cfe5b2320fe6e2893446c4cdb126d83b02c96ec112e9163be image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c30-warmup] CHECK vault_balance 100000->99999 recipient_balance 9->10 nonce 0->1
+[exec-c30-warmup] STAT wall_s=162.36 max_rss_mib=753 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+## exec-c30-run1: exec c30
+[exec-c30-run1] RESULT op=exec label=c30 m=30 n=30 sigs=32 sync_s=0.00 dry_run_s=0.37 send_tx_s=145.39 prove_est_s=145.02 incl_s=30.01 e2e_client_s=175.40 tx_bytes=311670 proof_bytes=267398 block=696 tx=44dcaedb0d5bb38bd843a427bca6f1366a23979b7cbca02587d392abe84127e5 image_id=e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557 dev_mode=false
+[exec-c30-run1] CHECK vault_balance 99999->99998 recipient_balance 10->11 nonce 1->2
+[exec-c30-run1] STAT wall_s=175.24 max_rss_mib=751 gpu_before_mib=1261 gpu_peak_mib=11066 gpu_peak_delta_mib=9805
+DONE

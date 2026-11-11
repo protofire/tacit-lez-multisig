@@ -1,0 +1,227 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+use risc0_zkvm::sha::{Impl, Sha256 as _};
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    Nullifier,
+    account::{Account, AccountId},
+    program::MessageBody,
+};
+
+/// A commitment to all zero data.
+/// ```python
+/// from hashlib import sha256
+/// prefix = b"/LEE/v0.3/Commitment/" + bytes(11)
+/// DUMMY_COMMITMENT = sha256(prefix + bytes(32) + sha256(bytes(20)).digest()).digest()
+/// ```
+pub const DUMMY_COMMITMENT: Commitment = Commitment([
+    59, 125, 5, 88, 44, 25, 75, 87, 238, 148, 130, 173, 76, 217, 13, 136, 125, 198, 106, 114, 48,
+    245, 101, 6, 37, 70, 51, 208, 20, 5, 51, 18,
+]);
+
+/// The hash of the dummy commitment.
+/// ```python
+/// from hashlib import sha256
+/// hasher = sha256()
+/// hasher.update(DUMMY_COMMITMENT)
+/// DUMMY_COMMITMENT_HASH = hasher.digest()
+/// ```
+pub const DUMMY_COMMITMENT_HASH: [u8; 32] = [
+    107, 9, 131, 34, 17, 0, 16, 21, 11, 42, 160, 50, 189, 133, 209, 183, 60, 242, 84, 238, 254, 37,
+    123, 26, 90, 172, 192, 13, 95, 233, 84, 41,
+];
+
+#[derive(Copy, Clone, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
+#[cfg_attr(
+    any(feature = "host", test),
+    derive(Default, PartialEq, Eq, Hash, PartialOrd, Ord)
+)]
+pub struct Commitment(pub(super) [u8; 32]);
+
+#[cfg(any(feature = "host", test))]
+impl std::fmt::Debug for Commitment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write as _;
+
+        let hex: String = self.0.iter().fold(String::new(), |mut acc, b| {
+            write!(acc, "{b:02x}").expect("writing to string should not fail");
+            acc
+        });
+        write!(f, "Commitment({hex})")
+    }
+}
+
+impl Commitment {
+    /// Commits to the account ID and account state.
+    /// SHA256(`Comm_DS` || `account_id` || SHA256(borsh(account))).
+    // TODO: Accept account_id by value as it's Copy
+    #[must_use]
+    pub fn new(account_id: &AccountId, account: &Account) -> Self {
+        const COMMITMENT_PREFIX: &[u8; 32] =
+            b"/LEE/v0.3/Commitment/\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
+        let hashed_account: [u8; 32] = Impl::hash_bytes(&account.to_bytes())
+            .as_bytes()
+            .try_into()
+            .unwrap();
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(COMMITMENT_PREFIX);
+        bytes.extend_from_slice(account_id.value());
+        bytes.extend_from_slice(&hashed_account);
+        Self(Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap())
+    }
+
+    #[must_use]
+    pub fn for_dummy(nullifier: &Nullifier, commitment_seed: &[u8; 32]) -> Self {
+        const DUMMY_PREFIX: &[u8; 32] = b"/LEE/v0.3/Commitment/Dummy/\x00\x00\x00\x00\x00";
+        let mut bytes = DUMMY_PREFIX.to_vec();
+        bytes.extend_from_slice(&nullifier.0);
+        bytes.extend_from_slice(commitment_seed);
+        Self(Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap())
+    }
+
+    /// Commits to a message body.
+    #[must_use]
+    pub fn for_message(body: &MessageBody) -> Self {
+        const MESSAGE_PREFIX: &[u8; 32] = b"/LEE/v0.3/Commitment/Message/\x00\x00\x00";
+        let mut bytes = [0; 64];
+        bytes[..32].copy_from_slice(MESSAGE_PREFIX);
+        bytes[32..].copy_from_slice(&body_digest(body));
+        Self(Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap())
+    }
+
+    /// Commits to a sealed message body under the randomness that hides it.
+    #[must_use]
+    pub fn for_sealed_message(body: &MessageBody, rho: &[u8; 32]) -> Self {
+        const SEALED_PREFIX: &[u8; 32] = b"/LEE/v0.3/Commitment/Sealed/\x00\x00\x00\x00";
+        let mut bytes = [0; 96];
+        bytes[..32].copy_from_slice(SEALED_PREFIX);
+        bytes[32..64].copy_from_slice(&body_digest(body));
+        bytes[64..].copy_from_slice(rho);
+        Self(Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap())
+    }
+}
+
+pub type CommitmentSetDigest = [u8; 32];
+
+pub type CommitmentPosition = u64;
+
+pub type MembershipProof = (CommitmentPosition, Vec<[u8; 32]>);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("A membership proof's position does not fit its path")]
+pub struct InvalidMembershipProof;
+
+/// Computes the resulting digest for the given membership proof and corresponding commitment.
+pub fn compute_digest_for_path(
+    commitment: &Commitment,
+    position: CommitmentPosition,
+    path: &[[u8; 32]],
+) -> Result<CommitmentSetDigest, InvalidMembershipProof> {
+    let value_bytes = commitment.to_byte_array();
+    let mut result: [u8; 32] = Impl::hash_bytes(&value_bytes)
+        .as_bytes()
+        .try_into()
+        .unwrap();
+    let mut level_index = position;
+    for node in path {
+        let mut bytes = [0_u8; 64];
+        let is_left_child = level_index & 1 == 0;
+        if is_left_child {
+            bytes[..32].copy_from_slice(&result);
+            bytes[32..].copy_from_slice(node);
+        } else {
+            bytes[..32].copy_from_slice(node);
+            bytes[32..].copy_from_slice(&result);
+        }
+        result = Impl::hash_bytes(&bytes).as_bytes().try_into().unwrap();
+        level_index >>= 1;
+    }
+    // A bit above the path's depth would give one leaf a second position.
+    if level_index != 0 {
+        return Err(InvalidMembershipProof);
+    }
+    Ok(result)
+}
+
+fn body_digest(body: &MessageBody) -> [u8; 32] {
+    Impl::hash_bytes(&borsh::to_vec(body).expect("borsh serialization is infallible"))
+        .as_bytes()
+        .try_into()
+        .unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use risc0_zkvm::sha::{Impl, Sha256 as _};
+
+    use crate::{
+        Commitment, DUMMY_COMMITMENT, DUMMY_COMMITMENT_HASH, Nullifier,
+        account::{Account, AccountId, Actor},
+        program::MessageBody,
+    };
+
+    #[test]
+    fn nothing_up_my_sleeve_dummy_commitment() {
+        let default_account = Account::default();
+        let account_id_null = AccountId::new([0; 32]);
+        let expected_dummy_commitment = Commitment::new(&account_id_null, &default_account);
+        assert_eq!(DUMMY_COMMITMENT, expected_dummy_commitment);
+    }
+
+    #[test]
+    fn nothing_up_my_sleeve_dummy_commitment_hash() {
+        let expected_dummy_commitment_hash: [u8; 32] =
+            Impl::hash_bytes(&DUMMY_COMMITMENT.to_byte_array())
+                .as_bytes()
+                .try_into()
+                .unwrap();
+        assert_eq!(DUMMY_COMMITMENT_HASH, expected_dummy_commitment_hash);
+    }
+
+    #[test]
+    fn for_dummy_matches_pinned_value() {
+        let nullifier = Nullifier::for_dummy(&[0; 32]);
+        let commitment_seed = [1; 32];
+        let expected_commitment = Commitment([
+            106, 88, 233, 248, 28, 251, 254, 48, 62, 53, 61, 248, 25, 148, 223, 133, 108, 213, 184,
+            83, 73, 145, 122, 104, 89, 220, 111, 132, 40, 87, 12, 105,
+        ]);
+        assert_eq!(
+            Commitment::for_dummy(&nullifier, &commitment_seed),
+            expected_commitment
+        );
+    }
+
+    #[test]
+    fn for_message_matches_pinned_value() {
+        let body = MessageBody {
+            from: Actor::new(AccountId::new([0; 32]), AccountId::new([1; 32])),
+            to: Actor::new(AccountId::new([2; 32]), AccountId::new([3; 32])),
+            message: vec![4; 2],
+        };
+        let expected_commitment = Commitment([
+            248, 122, 210, 52, 126, 63, 67, 22, 28, 199, 160, 42, 148, 4, 125, 247, 103, 212, 163,
+            190, 161, 40, 29, 242, 185, 161, 201, 58, 132, 138, 137, 73,
+        ]);
+        assert_eq!(Commitment::for_message(&body), expected_commitment);
+    }
+
+    #[test]
+    fn for_sealed_message_matches_pinned_value() {
+        let body = MessageBody {
+            from: Actor::new(AccountId::new([0; 32]), AccountId::new([1; 32])),
+            to: Actor::new(AccountId::new([2; 32]), AccountId::new([3; 32])),
+            message: vec![4; 2],
+        };
+        let expected_commitment = Commitment([
+            221, 93, 126, 70, 3, 114, 233, 26, 112, 113, 77, 28, 215, 195, 86, 118, 92, 171, 13,
+            197, 95, 183, 45, 111, 97, 74, 95, 6, 108, 250, 76, 70,
+        ]);
+        assert_eq!(
+            Commitment::for_sealed_message(&body, &[5; 32]),
+            expected_commitment
+        );
+    }
+}

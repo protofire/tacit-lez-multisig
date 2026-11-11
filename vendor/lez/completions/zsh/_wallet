@@ -1,0 +1,338 @@
+#compdef wallet
+
+# Zsh completion script for the wallet CLI
+# See instructions in ../README.md
+
+_wallet() {
+    local -a commands
+    local -a subcommands
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '(-c --continuous-run)'{-c,--continuous-run}'[Continuous run flag]' \
+        '--auth[Basic authentication in the format user or user\:password]:auth:' \
+        '1: :->command' \
+        '*:: :->args'
+
+    case $state in
+        command)
+            commands=(
+                'auth-transfer:Authenticated transfer subcommand'
+                'chain-info:Generic chain info subcommand'
+                'account:Account view and sync subcommand'
+                'bridge:Bridge program interaction subcommand'
+                'check-health:Check the wallet can connect to the node and builtin local programs match the remote versions'
+                'config:Command to setup config, get and set config fields'
+                'set-password:Set, change or remove the wallet storage password'
+                'restore-keys:Restoring keys from a mnemonic phrase at given depth'
+                'deploy-program:Deploy a program'
+                'help:Print help message or the help of the given subcommand(s)'
+            )
+            _describe -t commands 'wallet commands' commands
+            ;;
+        args)
+            case $line[1] in
+                auth-transfer)
+                    _wallet_auth_transfer
+                    ;;
+                chain-info)
+                    _wallet_chain_info
+                    ;;
+                account)
+                    _wallet_account
+                    ;;
+                bridge)
+                    _wallet_bridge
+                    ;;
+                config)
+                    _wallet_config
+                    ;;
+                restore-keys)
+                    _wallet_restore_keys
+                    ;;
+                deploy-program)
+                    _wallet_deploy_program
+                    ;;
+                help)
+                    _wallet_help
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# auth-transfer subcommand
+_wallet_auth_transfer() {
+    local -a subcommands
+
+    _arguments -C \
+        '1: :->subcommand' \
+        '*:: :->args'
+
+    case $state in
+        subcommand)
+            subcommands=(
+                'send:Send native tokens from one account to another with variable privacy'
+                'help:Print this message or the help of the given subcommand(s)'
+            )
+            _describe -t subcommands 'auth-transfer subcommands' subcommands
+            ;;
+        args)
+            case $line[1] in
+                send)
+                    _arguments \
+                        '--from[Source account ID]:from_account:_wallet_account_ids' \
+                        '--from-label[From account label (alternative to --from)]:label:' \
+                        '--to[Destination account ID (for owned accounts)]:to_account:_wallet_account_ids' \
+                        '--to-label[To account label (alternative to --to)]:label:' \
+                        '--to-npk[Destination nullifier public key (for foreign private accounts)]:npk:' \
+                        '--to-vpk[Destination viewing public key (for foreign private accounts)]:vpk:' \
+                        '--amount[Amount of native tokens to send]:amount:'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# chain-info subcommand
+_wallet_chain_info() {
+    local -a subcommands
+
+    _arguments -C \
+        '1: :->subcommand' \
+        '*:: :->args'
+
+    case $state in
+        subcommand)
+            subcommands=(
+                'current-block-id:Get current block id from sequencer'
+                'block:Get block at id from sequencer'
+                'transaction:Get transaction at hash from sequencer'
+                'help:Print this message or the help of the given subcommand(s)'
+            )
+            _describe -t subcommands 'chain-info subcommands' subcommands
+            ;;
+        args)
+            case $line[1] in
+                block)
+                    _arguments \
+                        '--id[Block ID to retrieve]:block_id:'
+                    ;;
+                transaction)
+                    _arguments \
+                        '--hash[Transaction hash to retrieve]:tx_hash:'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# account subcommand
+_wallet_account() {
+    local -a subcommands
+
+    _arguments -C \
+        '1: :->subcommand' \
+        '*:: :->args'
+
+    case $state in
+        subcommand)
+            subcommands=(
+                'get:Get account data'
+                'list:List all accounts owned by the wallet'
+                'ls:List all accounts (alias for list)'
+                'new:Produce new public or private account'
+                'sync-private:Sync private accounts'
+                'label:Set a label for an account'
+                'help:Print this message or the help of the given subcommand(s)'
+            )
+            _describe -t subcommands 'account subcommands' subcommands
+            ;;
+        args)
+            case $line[1] in
+                get)
+                    _arguments \
+                        '(-r --raw)'{-r,--raw}'[Get raw account data]' \
+                        '(-k --keys)'{-k,--keys}'[Display keys (pk for public accounts, npk/vpk for private accounts)]' \
+                        '(-a --account-id)'{-a,--account-id}'[Account ID to query]:account_id:_wallet_account_ids' \
+                        '--account-label[Account label (alternative to --account-id)]:label:'
+                    ;;
+                list|ls)
+                    _arguments \
+                        '(-l --long)'{-l,--long}'[Display detailed account information]'
+                    ;;
+                sync-private)
+                    _arguments \
+                        '--rescan[Rediscover private accounts from genesis]' \
+                        '(-y --yes)'{-y,--yes}'[Skip the confirmation prompt before the chain scan]'
+                    ;;
+                new)
+                    _arguments -C \
+                        '1: :->account_type' \
+                        '*:: :->new_args'
+                    case $state in
+                        account_type)
+                            compadd public private-accounts-key
+                            ;;
+                        new_args)
+                            case $line[1] in
+                                public)
+                                    _arguments \
+                                        '--cci[Chain index of a parent node]:chain_index:' \
+                                        '(-l --label)'{-l,--label}'[Label to assign to the new account]:label:'
+                                    ;;
+                                private-accounts-key)
+                                    _arguments \
+                                        '--cci[Chain index of a parent node]:chain_index:'
+                                    ;;
+                            esac
+                            ;;
+                    esac
+                    ;;
+                label)
+                    _arguments \
+                        '(-a --account-id)'{-a,--account-id}'[Account ID to label]:account_id:_wallet_account_ids' \
+                        '--account-label[Account label (alternative to --account-id)]:label:' \
+                        '(-l --label)'{-l,--label}'[The label to assign to the account]:label:'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# bridge subcommand
+_wallet_bridge() {
+    local -a subcommands
+
+    _arguments -C \
+        '1: :->subcommand' \
+        '*:: :->args'
+
+    case $state in
+        subcommand)
+            subcommands=(
+                'withdraw:Withdraw native tokens through the bridge'
+                'help:Print this message or the help of the given subcommand(s)'
+            )
+            _describe -t subcommands 'bridge subcommands' subcommands
+            ;;
+        args)
+            case $line[1] in
+                withdraw)
+                    _arguments \
+                        '--from[Sender account with privacy prefix]:from:_wallet_account_ids' \
+                        '--amount[Amount of native tokens to withdraw]:amount:' \
+                        '--bedrock-account-pk[Bedrock account public key (32-byte hex)]:bedrock_pk:'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# config subcommand
+_wallet_config() {
+    local -a subcommands
+    local -a config_keys
+
+    config_keys=(
+        'override_rust_log'
+        'sequencer_addr'
+        'seq_poll_timeout'
+        'seq_tx_poll_max_blocks'
+        'seq_poll_max_retries'
+        'seq_block_poll_max_amount'
+        'initial_accounts'
+        'basic_auth'
+    )
+
+    _arguments -C \
+        '1: :->subcommand' \
+        '*:: :->args'
+
+    case $state in
+        subcommand)
+            subcommands=(
+                'get:Getter of config fields'
+                'set:Setter of config fields'
+                'description:Prints description of corresponding field'
+                'help:Print this message or the help of the given subcommand(s)'
+            )
+            _describe -t subcommands 'config subcommands' subcommands
+            ;;
+        args)
+            case $line[1] in
+                get)
+                    _arguments \
+                        '(-a --all)'{-a,--all}'[Print all config fields]' \
+                        '::key:compadd -a config_keys'
+                    ;;
+                description)
+                    compadd -a config_keys
+                    ;;
+                set)
+                    _arguments \
+                        '1:key:compadd -a config_keys' \
+                        '2:value:'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# restore-keys subcommand
+_wallet_restore_keys() {
+    _arguments \
+        '(-d --depth)'{-d,--depth}'[How deep in tree accounts may be]:depth:' \
+        '(-y --yes)'{-y,--yes}'[Skip the confirmation prompt before the chain scan]'
+}
+
+# deploy-program subcommand
+_wallet_deploy_program() {
+    _arguments \
+        '1:binary filepath:_files'
+}
+
+# help subcommand
+_wallet_help() {
+    local -a commands
+    commands=(
+        'auth-transfer:Authenticated transfer subcommand'
+        'chain-info:Generic chain info subcommand'
+        'account:Account view and sync subcommand'
+        'bridge:Bridge program interaction subcommand'
+        'check-health:Check the wallet can connect to the node'
+        'config:Command to setup config, get and set config fields'
+        'set-password:Set, change or remove the wallet storage password'
+        'restore-keys:Restoring keys from a mnemonic phrase at given depth'
+        'deploy-program:Deploy a program'
+    )
+    _describe -t commands 'wallet commands' commands
+}
+
+# Helper function to complete account IDs
+# Uses `wallet account list` to get available accounts
+# Only includes accounts with /N prefix (where N is a number)
+_wallet_account_ids() {
+    local -a accounts
+    local line
+
+    # Try to get accounts from wallet account list command
+    # Filter to lines starting with /N (numbered accounts) and extract the account ID
+    if command -v wallet &>/dev/null; then
+        while IFS= read -r line; do
+            # Remove trailing comma if present and add to array
+            [[ -n "$line" ]] && accounts+=("${line%,}")
+        done < <(wallet account list 2>/dev/null | grep '^/[0-9]' | awk '{print $2}')
+    fi
+
+    # Provide type prefixes as fallback if command fails or returns nothing
+    if (( ${#accounts} == 0 )); then
+        compadd -S '' -- 'Public/' 'Private/'
+        return
+    fi
+
+    _multi_parts / accounts
+}
+
+_wallet "$@"

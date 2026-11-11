@@ -1,0 +1,250 @@
+# RISC0_USE_DOCKER=1 RISC0_DEV_MODE=1 cargo test --workspace  2026-11-11T18:00:27Z  image msig e174a45fc81ca8ba92f8b407825546fbb38377c10dc8d4362204266efc134557  LEZ v0.4.0-rc1 1806e87
+# macOS 27 host: built with --config patch.crates-io.risc0-sys.path=target/risc0-sys-metal-fix (see scripts/bench-mac.sh); guest unaffected
+     Locking 1 package to latest Rust 1.98.1 compatible version
+      Adding risc0-sys v1.5.0 (<repo>/target/risc0-sys-metal-fix)
+warning: lee@0.1.0: Generated module at <repo>/target/debug/build/lee-d1784df2d2f05b79/out/lee/privacy_preserving_circuit/mod.rs
+warning: programs@0.1.0: Generated module at <repo>/target/debug/build/programs-40a773054f72f2e9/out/lez/programs/mod.rs
+   Compiling msig-methods v0.1.0 (<repo>/crates/msig-methods)
+   Compiling msig-plumb v0.1.0 (<repo>/crates/msig-plumb)
+   Compiling msig-core v0.1.0 (<repo>/crates/msig-core)
+   Compiling msig-host v0.1.0 (<repo>/crates/msig-host)
+   Compiling msig-cli v0.1.0 (<repo>/crates/msig-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 46s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/msig-afe7133583a7f197)
+
+running 7 tests
+test envelope::tests::unknown_program_is_labelled ... ok
+test envelope::tests::new_config_ops_are_decoded ... ok
+test envelope::tests::version_and_garbage_are_refused ... ok
+test envelope::tests::show_refuses_a_tampered_action ... ok
+test envelope::tests::show_flags_a_signature_over_other_bytes ... ok
+test envelope::tests::json_round_trip_and_decode ... ok
+test envelope::tests::spend_envelope_signs_the_program_spend_digest ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/msig_core-a201cd1f52c541e6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/handler.rs (target/debug/deps/handler-d9e697fc73c2cf77)
+
+running 52 tests
+test call_action_encoding_is_unchanged ... ok
+test approval_digests_known_answers ... ok
+test create_writes_config_at_nonce_zero ... ok
+test create_on_initialised_account_fails ... ok
+test create_rejects_bad_threshold ... ok
+test below_threshold_rejected ... ok
+test config_change_needs_quorum ... ok
+test cancel_needs_quorum ... ok
+test approvals_are_attributed_to_the_member_at_their_index ... ok
+test foreign_config_cannot_init ... ok
+test duplicate_signer_rejected ... ok
+test cancel_consumes_nonce_and_kills_competing_proposals ... ok
+test authority_only_for_v_and_no_reentry ... ok
+test non_member_index_is_rejected ... ok
+test non_member_key_under_member_index_is_rejected ... ok
+test non_executor_cannot_execute ... ok
+test proposer_does_not_count_as_approver ... ok
+test queue_and_spend_digests_known_answers ... ok
+test proposer_without_vote_cannot_approve ... ok
+test add_member_and_set_threshold ... ok
+test proposer_without_initiate_rejected ... ok
+test queue_without_time_lock_is_rejected ... ok
+test member_count_is_capped_at_max_members ... ok
+test only_the_proposer_queues_and_t_is_bound_by_the_queuer_signature ... ok
+test bad_limits_are_rejected ... ok
+test queue_then_execute_after_eta ... ok
+test old_epoch_approvals_rejected ... ok
+test quorum_met_executes_and_bumps_nonce ... ok
+test queue_and_execute_signatures_are_not_interchangeable ... ok
+test queued_action_is_voided_by_cancel_and_by_an_epoch_bump ... ok
+test replies_keep_state ... ok
+test config_breaking_invariants_is_rejected ... ok
+test replayed_approval_is_rejected ... ok
+test remove_member_bumps_epoch_and_nonce ... ok
+test queuer_must_be_initiate_and_execute_must_match_the_queued_action ... ok
+test tampered_signature_is_rejected ... ok
+test spend_period_cannot_be_backfilled ... ok
+test spend_within_limit_moves_native_and_keeps_the_action_nonce ... ok
+test queue_window_checks ... ok
+test spend_needs_a_limit_and_enough_spend_members ... ok
+test spend_over_limit_is_rejected_and_resets_on_a_new_period ... ok
+test set_limit_resets_the_period_counter_but_not_the_spend_nonce ... ok
+test v1_state_is_rejected_not_migrated ... ok
+test queued_member_removal_executes_and_kills_old_epoch_approvals ... ok
+test unsorted_signers_are_rejected ... ok
+test wrong_action_rejected ... ok
+test uninitialised_vault_cannot_be_drained ... ok
+test time_lock_blocks_immediate_execute_but_not_cancel ... ok
+test zero_and_unknown_perm_bits_are_rejected ... ok
+test time_lock_is_capped_and_a_max_lock_still_queues_and_executes ... ok
+test exhaustive_subset_oracle_n5 ... ok
+test exhaustive_subset_oracle_n7 ... ok
+
+test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.81s
+
+     Running unittests src/lib.rs (target/debug/deps/msig_host-cb53564a9726712c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/msig-bench.rs (target/debug/deps/msig_bench-829518344d28f7bd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/msig-cycles.rs (target/debug/deps/msig_cycles-ef5b81fc6024eb7f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/msig-e2e.rs (target/debug/deps/msig_e2e-1b8475481a02149b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/msig-prove.rs (target/debug/deps/msig_prove-2deb822669e86f19)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/private.rs (target/debug/deps/private-d1398aa356ae8ed8)
+
+running 18 tests
+test private_vault_is_bound_to_the_deployed_program_account ... ok
+test create_with_wrong_keys_is_rejected ... ok
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+test approvals_are_attributed_to_the_member_at_their_index ... ok
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test spend_backfill_of_a_past_period_is_rejected_by_the_window ... ok
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test create_private_multisig_at_deployed_p ... ok
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test quorum_execute_moves_native_balance_out_of_v ... ok
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test replayed_execute_is_rejected_after_nonce_bump ... ok
+test worst_case_quorum_fits_the_block_gas_cap ... ok
+test uninitialised_vault_cannot_be_drained ... ok
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test viewing_key_alone_decrypts_state ... ok
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+test gms_holder_cannot_bypass_quorum_e_liveness_veto_is_reproduced ... ok
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test private_tx_byte_scan ... ok
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+test gms_holder_cannot_bypass_quorum ... ok
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test spend_within_limit_over_limit_and_no_backfill ... ok
+test queue_signature_cannot_execute_and_old_epoch_approvals_die ... ok
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test config_removes_member_and_stale_approvals_are_rejected ... ok
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+WARNING: proving in dev mode. This will not generate valid, secure proofs.
+WARNING: Proving in dev mode does not generate a valid receipt. Receipts generated from this process are invalid and should never be used in production.
+test time_lock_blocks_early_execute_then_executes_at_eta ... ok
+test zero_threshold_and_zero_period_limits_are_rejected ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.52s
+
+     Running unittests src/lib.rs (target/debug/deps/msig_methods-a7634b54f2e7babb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/msig_plumb-a067e8bef1a7e2e9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests msig_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests msig_host
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests msig_methods
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests msig_plumb
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT 0
